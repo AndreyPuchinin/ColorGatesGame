@@ -151,6 +151,9 @@ class Game:
         self.speed = 20  # Скорость падения объектов
         self.scroll_offset = 0  # Смещение для скролла таблицы рекордов
 
+    import json
+    from datetime import datetime
+
     def save_score(self, name, score):
         try:
             with open('scores.json', 'r') as file:
@@ -159,6 +162,17 @@ class Game:
             scores = {}
 
         current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        # Удаляем перебитые рекорды
+        if name in scores:
+            # Фильтруем записи, оставляя только те, которые не соответствуют условиям удаления
+            scores[name] = [record for record in scores[name] if not (
+                    record[2] == self.level_type and  # 1. Тип уровня совпадает
+                    record[3] <= self.speed and  # 2. Скорость <= текущей
+                    record[0] <= score  # 3. Очки <= текущим
+            )]
+
+        # Добавляем новый рекорд
         if name in scores:
             scores[name].append([score, current_time, self.level_type, self.speed])
         else:
@@ -167,8 +181,8 @@ class Game:
         try:
             with open('scores.json', 'w') as file:
                 json.dump(scores, file, indent=4)
-        # except IOError as e:
-        #    print(f"Ошибка при сохранении файла: {e}.")
+        except IOError as e:
+            print(f"Ошибка при сохранении файла: {e}.")
         finally:
             pass
 
@@ -247,7 +261,7 @@ class Game:
                         return
 
     def set_speed(self):
-        speed_input = ""
+        speed_input = str(self.speed)
         while True:
             screen.fill((0, 0, 0))
             font = pygame.font.Font(None, 36)
@@ -298,9 +312,9 @@ class Game:
             screen.blit(text, (70, 200))
             text = font.render("Белые блоки дают доп. жизни. Помните о раскладке!", True, (255, 255, 255))
             screen.blit(text, (70, 250))
-            text = font.render("Автор игры: Андрей Кубик.", True, (255, 255, 255))
+            text = font.render("АВТОР ИГРЫ: Андрей Кубик.", True, (255, 255, 255))
             screen.blit(text, (50, 300))
-            text = font.render("Мои контакты:", True, (255, 255, 255))
+            text = font.render("МОИ КОНТАКТЫ:", True, (255, 255, 255))
             screen.blit(text, (50, 350))
             text = font.render("Вк - ЗелРубКуб: https://vk.com/progresscubezelenograd.", True, (255, 255, 255))
             screen.blit(text, (50, 400))
@@ -513,7 +527,7 @@ class Game:
                 lanes = random.sample(range(4), 2)
                 return [Heart(lane) for lane in lanes]
         else:
-            if random.randint(0, 11) != 0:
+            if random.randint(0, 15) != 0:
                 color = random.choice(['red', 'green', 'blue', 'yellow'])
                 lane = random.randint(0, 3)
                 return [Square(color, lane)]
