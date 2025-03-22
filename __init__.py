@@ -130,6 +130,7 @@ def generate_objects():
 class Game:
     def __init__(self):
         self.clock = pygame.time.Clock()
+        self.records_are_broken = False
         self.objects = []
         self.gates = [Gate(i, key) for i, key in enumerate(['a', 's', 'd', 'f'])]
         self.running = True
@@ -192,6 +193,10 @@ class Game:
             with open('scores.json', 'r') as file:
                 scores = json.load(file)
 
+            if self.records_are_broken:
+                self.records_are_broken = False
+                screen.fill((0, 0, 0))
+
             font = pygame.font.Font(None, 36)
             y = self.score_info_start - self.scroll_offset
             for player, records in scores.items():
@@ -219,6 +224,7 @@ class Game:
             self.scores_height = copy.copy(y) + self.scroll_offset - (HEIGHT // 2)
 
         except (FileNotFoundError, json.JSONDecodeError):
+            self.records_are_broken = True
             screen.fill((0, 0, 0))
             font = pygame.font.Font(None, 36)
             text = font.render("Файл с рекордами \"scores.json\" повержден!", True, (255, 255, 255))
@@ -589,6 +595,7 @@ class Game:
                         exit()
 
     def game_loop(self):
+        self.gates = [Gate(i, key) for i, key in enumerate(['a', 's', 'd', 'f'])]
         self.lives = 4
         self.score = 0
         self.objects = []
