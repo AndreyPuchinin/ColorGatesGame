@@ -388,7 +388,13 @@ class Game:
             if keys[key] and self.current_time - self.gates[i].last_toggle_time > 200:  # Задержка 200 мс
                 self.gates[i].last_toggle_time = self.current_time
                 # Устанавливаем цвет ворот в зависимости от активного цвета
-                self.gates[i].set_color(self.color_manager.active_color if self.color_manager.active_color else 'black')
+                if self.gates[i].color != self.color_manager.active_color:
+                    chosen_color = self.color_manager.active_color
+                else:
+                    chosen_color = 'black'
+                if self.gates[i].color == self.color_manager.active_color:
+                    chosen_color = 'black'
+                self.gates[i].set_color(chosen_color)
 
         # Обработка выбора цвета
         if keys[pygame.K_j]:
