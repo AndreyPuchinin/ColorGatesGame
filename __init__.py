@@ -224,7 +224,18 @@ class Game:
 
             self.scores_height = copy.copy(y) + self.scroll_offset - (HEIGHT // 2)
 
-        except (FileNotFoundError, json.JSONDecodeError):
+        except FileNotFoundError:
+            self.records_are_broken = True
+            screen.fill((0, 0, 0))
+            font = pygame.font.Font(None, 36)
+            text = font.render("Файл с рекордами \"scores.json\" еще не создан!", True, (255, 255, 255))
+            screen.blit(text, (50, 80))
+            text = font.render("Создайте его или сохраните результат 1ой игры.", True, (255, 255, 255))
+            screen.blit(text, (50, 80 + 50))
+            text = font.render("Нажмите Esc для возврата в меню.", True, (255, 255, 255))
+            screen.blit(text, (50, HEIGHT - 100))
+            pygame.display.flip()
+        except json.JSONDecodeError:
             self.records_are_broken = True
             screen.fill((0, 0, 0))
             font = pygame.font.Font(None, 36)
@@ -232,7 +243,6 @@ class Game:
             screen.blit(text, (50, 80))
             text = font.render("Отредактируйте или удалите его из папки с игрой.", True, (255, 255, 255))
             screen.blit(text, (50, 80 + 50))
-            pygame.draw.rect(screen, "black", (0, HEIGHT - 120, WIDTH, HEIGHT))
             text = font.render("Нажмите Esc для возврата в меню.", True, (255, 255, 255))
             screen.blit(text, (50, HEIGHT - 100))
             pygame.display.flip()
@@ -477,7 +487,7 @@ class Game:
             font = pygame.font.Font(None, 36)
             text = font.render(f"Счет: {self.score}.", True, (255, 255, 255))
             screen.blit(text, (WIDTH // 2 - 100, HEIGHT // 2))
-            text = font.render("1. Сохранить рекорд.", True, (255, 255, 255))
+            text = font.render("1. Сохранить результат.", True, (255, 255, 255))
             screen.blit(text, (WIDTH // 2 - 100, HEIGHT // 2 + 50))
             text = font.render("2. Обратно в главное меню.", True, (255, 255, 255))
             screen.blit(text, (WIDTH // 2 - 100, HEIGHT // 2 + 100))
