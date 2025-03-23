@@ -186,7 +186,7 @@ class Game:
             # Фильтруем записи, оставляя только те, которые не соответствуют условиям удаления
             scores[name] = [record for record in scores[name] if not (
                     record[2] == self.level_type and  # 1. Тип уровня совпадает
-                    record[4] == self.evil_blocks_activated and  # 2. Тот же выбор препятствий
+                    record[4] <= self.evil_blocks_activated and  # 2. Если выбор препятствий <=
                     record[3] <= self.speed and  # 3. Скорость <= текущей
                     record[0] <= score  # 4. Очки <= текущим
             )]
