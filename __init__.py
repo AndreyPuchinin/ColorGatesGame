@@ -263,8 +263,17 @@ class Game:
             screen.blit(text, (70, 150))
             text = font.render("3. С перемешиванием цветов.", True, (255, 255, 255))
             screen.blit(text, (70, 200))
+            level_type_number = ""
+            if self.level_type == "normal":
+                level_type_number = "1"
+            elif self.level_type == "multi_color":
+                level_type_number = "2"
+            elif self.level_type == "shuffle":
+                level_type_number = "3"
+            text = font.render(f"Текущий выбор: {level_type_number}.", True, (255, 255, 255))
+            screen.blit(text, (70, 250))
             text = font.render("Нажмите Esc для возврата в меню.", True, (255, 255, 255))
-            screen.blit(text, (50, 250))
+            screen.blit(text, (50, 300))
             pygame.display.flip()
 
             for event in pygame.event.get():
