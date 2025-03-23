@@ -186,15 +186,16 @@ class Game:
             # Фильтруем записи, оставляя только те, которые не соответствуют условиям удаления
             scores[name] = [record for record in scores[name] if not (
                     record[2] == self.level_type and  # 1. Тип уровня совпадает
-                    record[3] <= self.speed and  # 2. Скорость <= текущей
-                    record[0] <= score  # 3. Очки <= текущим
+                    record[4] == self.evil_blocks_activated and  # 2. Тот же выбор препятствий
+                    record[3] <= self.speed and  # 3. Скорость <= текущей
+                    record[0] <= score  # 4. Очки <= текущим
             )]
 
         # Добавляем новый рекорд
         if name in scores:
-            scores[name].append([score, current_time, self.level_type, self.speed])
+            scores[name].append([score, current_time, self.level_type, self.speed, self.evil_blocks_activated])
         else:
-            scores[name] = [[score, current_time, self.level_type, self.speed]]
+            scores[name] = [[score, current_time, self.level_type, self.speed, self.evil_blocks_activated]]
 
         try:
             with open('scores.json', 'w') as file:
@@ -204,6 +205,57 @@ class Game:
         finally:
             pass
 
+    def records_format_feets(self, data):
+        """
+            Проверяет, соответствует ли JSON-файл заданному формату.
+
+            :param: data - содержимое файла.
+            :return: True, если формат корректен, иначе False.
+            """
+
+        # Проверяем, что data является словарем
+        if not isinstance(data, dict):
+            return False
+
+        for name, records in data.items():
+            # Проверяем, что ключ — это строка
+            if not isinstance(name, str):
+                return False
+
+            # Проверяем, что значение — это список
+            if not isinstance(records, list):
+                return False
+
+            # Проверяем каждый элемент списка
+            for record in records:
+                # Проверяем, что запись — это список из 5 элементов
+                if not isinstance(record, list) or len(record) != 5:
+                    return False
+
+                # Проверяем типы элементов записи
+                if not (
+                        isinstance(record[0], int) and  # Счёт
+                        isinstance(record[1], str) and  # Дата/время
+                        isinstance(record[2], str) and  # Тип уровня
+                        isinstance(record[3], int) and  # Скорость
+                        isinstance(record[4], bool)  # Флаг
+                ):
+                    return False
+
+        # Если все проверки пройдены, возвращаем True
+        return True
+
+    def print_broken_records(self):
+        self.records_are_broken = True
+        screen.fill((0, 0, 0))
+        font = pygame.font.Font(None, 36)
+        text = font.render("Файл с рекордами \"scores.json\" повержден!", True, (255, 255, 255))
+        screen.blit(text, (50, 80))
+        text = font.render("Отредактируйте или удалите его из папки с игрой.", True, (255, 255, 255))
+        screen.blit(text, (50, 80 + 50))
+        text = font.render("Нажмите Esc для возврата в меню.", True, (255, 255, 255))
+        screen.blit(text, (50, HEIGHT - 100))
+        pygame.display.flip()
 
     def draw_high_scores(self):
         try:
@@ -214,31 +266,37 @@ class Game:
                 self.records_are_broken = False
                 screen.fill((0, 0, 0))
 
-            font = pygame.font.Font(None, 36)
-            y = self.score_info_start - self.scroll_offset
-            for player, records in scores.items():
-                text = font.render(f"Игрок: {player}:", True, (255, 255, 255))
-                screen.blit(text, (50, y))
-                y += self.score_info_start
-                for record in records:
-                    if len(record) == 4:
-                        score, date_time, level_type, speed = record
-                        text = font.render(f"Счет: {score}, Дата: {date_time},", True, (255, 255, 255))
-                        screen.blit(text, (70, y))
-                        y += self.score_info_step
-                        text = font.render(f"Уровень: {level_type}, Скорость: {speed}.", True, (255, 255, 255))
-                        screen.blit(text, (70, y))
-                        y += self.score_info_start
-                y += self.score_block_step
+            if not self.records_format_feets(scores):
+                self.print_broken_records()
+            else:
+                font = pygame.font.Font(None, 36)
+                y = self.score_info_start - self.scroll_offset
+                for player, records in scores.items():
+                    text = font.render(f"Игрок: {player}:", True, (255, 255, 255))
+                    screen.blit(text, (50, y))
+                    y += self.score_info_start
+                    for record in records:
+                        if len(record) == 5:
+                            score, date_time, level_type, speed, evil_block_acivated = record
+                            text = font.render(f"Счет: {score}, Дата: {date_time},", True, (255, 255, 255))
+                            screen.blit(text, (70, y))
+                            y += self.score_info_step
+                            text = font.render(f"Уровень: {level_type}, Скорость: {speed},", True, (255, 255, 255))
+                            screen.blit(text, (70, y))
+                            y += self.score_info_step
+                            text = font.render(f"Активация блоков: {evil_block_acivated}.", True, (255, 255, 255))
+                            screen.blit(text, (70, y))
+                            y += self.score_info_start
+                    y += self.score_block_step
 
-                pygame.draw.rect(screen, "black", (0, HEIGHT - 120, WIDTH, HEIGHT))
-                text = font.render("Нажмите Esc для возврата в меню.", True, (255, 255, 255))
-                screen.blit(text, (50, HEIGHT - 100))
-                text = font.render("Используйте колесико мышки для навигации.", True, (255, 255, 255))
-                screen.blit(text, (50, HEIGHT - 50))
-                pygame.display.flip()
+                    pygame.draw.rect(screen, "black", (0, HEIGHT - 120, WIDTH, HEIGHT))
+                    text = font.render("Нажмите Esc для возврата в меню.", True, (255, 255, 255))
+                    screen.blit(text, (50, HEIGHT - 100))
+                    text = font.render("Используйте колесико мышки для навигации.", True, (255, 255, 255))
+                    screen.blit(text, (50, HEIGHT - 50))
+                    pygame.display.flip()
 
-            self.scores_height = copy.copy(y) + self.scroll_offset - (HEIGHT // 2)
+                self.scores_height = copy.copy(y) + self.scroll_offset - (HEIGHT // 2)
 
         except FileNotFoundError:
             self.records_are_broken = True
@@ -252,16 +310,7 @@ class Game:
             screen.blit(text, (50, HEIGHT - 100))
             pygame.display.flip()
         except json.JSONDecodeError:
-            self.records_are_broken = True
-            screen.fill((0, 0, 0))
-            font = pygame.font.Font(None, 36)
-            text = font.render("Файл с рекордами \"scores.json\" повержден!", True, (255, 255, 255))
-            screen.blit(text, (50, 80))
-            text = font.render("Отредактируйте или удалите его из папки с игрой.", True, (255, 255, 255))
-            screen.blit(text, (50, 80 + 50))
-            text = font.render("Нажмите Esc для возврата в меню.", True, (255, 255, 255))
-            screen.blit(text, (50, HEIGHT - 100))
-            pygame.display.flip()
+            self.print_broken_records()
 
 
     def select_difficulty(self):
