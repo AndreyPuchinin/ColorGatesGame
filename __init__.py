@@ -36,6 +36,9 @@ class ColorManager:
         self.colors = ['red', 'green', 'blue', 'yellow']
         self.active_color = None
 
+    def shuffle(self):
+        random.shuffle(self.colors)
+
     def get_color(self, color):
         if color == self.active_color:
             return color
@@ -258,8 +261,10 @@ class Game:
             screen.blit(text, (70, 100))
             text = font.render("2. Разные цвета (2 блока разного цвета).", True, (255, 255, 255))
             screen.blit(text, (70, 150))
+            text = font.render("3. С перемешиванием цветов.", True, (255, 255, 255))
+            screen.blit(text, (70, 200))
             text = font.render("Нажмите Esc для возврата в меню.", True, (255, 255, 255))
-            screen.blit(text, (50, 200))
+            screen.blit(text, (50, 250))
             pygame.display.flip()
 
             for event in pygame.event.get():
@@ -273,6 +278,9 @@ class Game:
                         return
                     elif event.key == pygame.K_2:
                         self.level_type = "multi_color"
+                        return
+                    elif event.key == pygame.K_3:
+                        self.level_type = "shuffle"
                         return
                     elif event.key == pygame.K_ESCAPE:
                         return
@@ -398,13 +406,17 @@ class Game:
 
         # Обработка выбора цвета
         if keys[pygame.K_j]:
-            self.color_manager.set_active_color('red')
+            activate_color = self.color_manager.colors[0]
+            self.color_manager.set_active_color(activate_color)
         elif keys[pygame.K_k]:
-            self.color_manager.set_active_color('green')
+            activate_color = self.color_manager.colors[1]
+            self.color_manager.set_active_color(activate_color)
         elif keys[pygame.K_l]:
-            self.color_manager.set_active_color('blue')
+            activate_color = self.color_manager.colors[2]
+            self.color_manager.set_active_color(activate_color)
         elif keys[pygame.K_SEMICOLON]:
-            self.color_manager.set_active_color('yellow')
+            activate_color = self.color_manager.colors[3]
+            self.color_manager.set_active_color(activate_color)
 
         # Генерация объектов с учетом сетки
         if self.grid_y % self.grid_step == 0:
@@ -426,6 +438,9 @@ class Game:
                 else:
                     if gate.open and gate.color == obj.color:
                         self.score += 5  # Начисление очков
+                        if self.level_type == 'shuffle':
+                            if random.randint(0, 2) == 1:
+                                self.color_manager.shuffle()
                     else:
                         self.lives -= 1  # Потеря жизни
                 self.objects.remove(obj)
@@ -434,7 +449,7 @@ class Game:
         if self.lives <= 0:
             self.game_over = True
 
-    def draw(self):
+    def draw_playing(self):
         screen.fill((0, 0, 0))
         for obj in self.objects:
             obj.move()
@@ -443,7 +458,7 @@ class Game:
             gate.draw(screen)
 
         # Отображение выбора цвета
-        for i, color in enumerate(['red', 'green', 'blue', 'yellow']):
+        for i, color in enumerate(self.color_manager.colors):
             color_display = COLORS[self.color_manager.get_color(color)]
             pygame.draw.rect(screen, color_display, (i * (WIDTH // 4), HEIGHT - 100, WIDTH // 4, 50))
             font = pygame.font.Font(None, 36)
@@ -623,7 +638,7 @@ class Game:
             self.handle_events()
             if not self.paused:
                 self.update()
-                self.draw()
+                self.draw_playing()
                 self.clock.tick(self.speed)
 
                 if self.game_over:
