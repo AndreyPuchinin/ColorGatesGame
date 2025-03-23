@@ -2,6 +2,7 @@ import pygame
 import random
 import json
 import copy
+import sys
 from datetime import datetime
 from abc import ABC, abstractmethod
 
@@ -253,7 +254,7 @@ class Game:
 
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
-                    exit()
+                    sys.exit()
                     # self.running = False
                     # return
                 if event.type == pygame.KEYDOWN:
@@ -283,7 +284,7 @@ class Game:
 
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
-                    exit()
+                    sys.exit()
                     # self.running = False
                     # return
                 if event.type == pygame.KEYDOWN:
@@ -334,7 +335,7 @@ class Game:
 
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
-                    exit()
+                    sys.exit()
                     # self.running = False
                     # return
                 if event.type == pygame.KEYDOWN:
@@ -344,7 +345,7 @@ class Game:
     def handle_events(self):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                exit()
+                sys.exit()
                 # self.running = False
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_SPACE:
@@ -561,7 +562,7 @@ class Game:
             self.draw_menu()
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
-                    exit()
+                    sys.exit()
                     # self.running = False
                     # return
                 if event.type == pygame.KEYDOWN:
@@ -576,7 +577,7 @@ class Game:
                             self.draw_high_scores()
                             for event in pygame.event.get():
                                 if event.type == pygame.QUIT:
-                                    exit()
+                                    sys.exit()
                                     # self.running = False
                                     # return
                                 if event.type == pygame.KEYDOWN:
@@ -592,7 +593,7 @@ class Game:
                     elif event.key == pygame.K_5:
                         self.about_game()
                     elif event.key == pygame.K_6:
-                        exit()
+                        sys.exit()
 
     def game_loop(self):
         self.gates = [Gate(i, key) for i, key in enumerate(['a', 's', 'd', 'f'])]
@@ -631,7 +632,7 @@ class Game:
             self.draw_game_over()
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
-                    exit()
+                    sys.exit()
                     # self.running = False
                     # return
                 if event.type == pygame.KEYDOWN:
@@ -642,7 +643,7 @@ class Game:
                             self.draw_save_score_menu()
                             for event in pygame.event.get():
                                 if event.type == pygame.QUIT:
-                                    exit()
+                                    sys.exit()
                                     # self.running = False
                                     # return
                                 if event.type == pygame.KEYDOWN:
