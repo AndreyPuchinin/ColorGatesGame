@@ -96,6 +96,18 @@ class Heart(GameObject):
         pygame.draw.rect(screen, COLORS[self.color], (self.x, self.y, WIDTH // 4, 50))
 
 
+class EvilBlock(GameObject):
+    def __init__(self, lane):
+        super().__init__('gray', lane)
+        self.speed = 5
+
+    def move(self):
+        self.y += self.speed
+
+    def draw(self, screen):
+        pygame.draw.rect(screen, COLORS[self.color], (self.x, self.y, WIDTH // 4, 50))
+
+
 # Класс для ворот
 class Gate:
     def __init__(self, lane, key):
@@ -109,7 +121,7 @@ class Gate:
         self.color = color
 
     def draw(self, screen):
-        color = COLORS[self.color] if self.open else COLORS['black']
+        color = COLORS[self.color] if self.open and self.color else COLORS['black']
         pygame.draw.rect(screen, color, (self.lane * (WIDTH // 4), HEIGHT - 150, WIDTH // 4, 50))
         font = pygame.font.Font(None, 36)
         text = font.render(self.key, True, (255, 255, 255))
@@ -146,6 +158,7 @@ class Game:
         self.paused = False
         self.game_over = False
         self.saving_score = False
+        self.evil_blocks_activated = False
         self.player_name = ""
         self.current_time = 0
         self.score_info_step = 30
@@ -284,13 +297,10 @@ class Game:
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_1:
                         self.level_type = "normal"
-                        return
                     elif event.key == pygame.K_2:
                         self.level_type = "multi_color"
-                        return
                     elif event.key == pygame.K_3:
                         self.level_type = "shuffle"
-                        return
                     elif event.key == pygame.K_ESCAPE:
                         return
 
@@ -342,7 +352,7 @@ class Game:
             screen.blit(text, (70, 100))
             text = font.render("Красьте ворота в нужный цвет клавишами \"j\", \"k\", \"l\", \";\".", True, (255, 255, 255))
             screen.blit(text, (70, 150))
-            text = font.render("Ловите каждый цветной блок.", True, (255, 255, 255))
+            text = font.render("Ловите каждый цветной блок. Избегайте серых!", True, (255, 255, 255))
             screen.blit(text, (70, 200))
             text = font.render("Белые блоки дают доп. жизни. Помните о раскладке!", True, (255, 255, 255))
             screen.blit(text, (70, 250))
@@ -444,6 +454,9 @@ class Game:
                 if isinstance(obj, Heart):
                     if gate.open and gate.color != 'black':  # Ворота должны быть активны
                         self.lives = min(self.lives + 1, 4)  # Восстановление жизни
+                elif isinstance(obj, EvilBlock):
+                    if gate.open and gate.color != 'black':
+                        self.lives = max(0, self.lives - 1)
                 else:
                     if gate.open and gate.color == obj.color:
                         self.score += 5  # Начисление очков
@@ -502,10 +515,12 @@ class Game:
         screen.blit(text, (WIDTH // 2 - 100, (HEIGHT // 2) - 50 + 25))
         text = font.render("4. Установить скорость.", True, (255, 255, 255))
         screen.blit(text, (WIDTH // 2 - 100, (HEIGHT // 2) + 50 - 25))
-        text = font.render("5. Об игре.", True, (255, 255, 255))
+        text = font.render("5. Активация препятствий.", True, (255, 255, 255))
         screen.blit(text, (WIDTH // 2 - 100, (HEIGHT // 2) + 100 - 25))
-        text = font.render("6. Выход.", True, (255, 255, 255))
+        text = font.render("6. Об игре.", True, (255, 255, 255))
         screen.blit(text, (WIDTH // 2 - 100, (HEIGHT // 2) + 150 - 25))
+        text = font.render("7. Выход.", True, (255, 255, 255))
+        screen.blit(text, (WIDTH // 2 - 100, (HEIGHT // 2) + 200 - 25))
         pygame.display.flip()
 
     def draw_game_over(self):
@@ -552,6 +567,32 @@ class Game:
         # screen.blit(text, (WIDTH // 2 - 100, HEIGHT // 2 + 100))
         pygame.display.flip()
 
+    def activate_evil_blocks(self):
+        while True:
+            screen.fill((0, 0, 0))
+            font = pygame.font.Font(None, 36)
+            evil_blocks_activate_choose = "ДА" if self.evil_blocks_activated else "НЕТ"
+            text = font.render(f"Активировать препятствия? ({evil_blocks_activate_choose}).", True, (255, 255, 255))
+            screen.blit(text, (50,50))
+            text = font.render("1.ДА.", True, (255, 255, 255))
+            screen.blit(text, (50, 100))
+            text = font.render("2.НЕТ.", True, (255, 255, 255))
+            screen.blit(text, (50, 150))
+            text = font.render("Нажмите Esc для возврата в меню.", True, (255, 255, 255))
+            screen.blit(text, (50, 200))
+            pygame.display.flip()
+
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    sys.exit()
+                elif event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_ESCAPE:
+                        return
+                    elif event.key == pygame.K_1:
+                        self.evil_blocks_activated = True
+                    elif event.key == pygame.K_2:
+                        self.evil_blocks_activated = False
+
     def generate_objects(self):
         # Старый уровень с тремя блоками одного цвета
         # Убрал, потому что слишком просто - зажимаются все дорожки, и все
@@ -566,21 +607,29 @@ class Game:
         #         lanes = random.sample(range(4), 3)
         #         return [Heart(lane) for lane in lanes]
         if self.level_type == "multi_color":
-            if random.randint(0, 8) != 0:
+            if random.randint(0, 8) > 3:
                 colors = random.sample(['red', 'green', 'blue', 'yellow'], 2)
                 lanes = random.sample(range(4), 2)
                 return [Square(colors[i], lanes[i]) for i in range(2)]
             else:
-                lanes = random.sample(range(4), 2)
-                return [Heart(lane) for lane in lanes]
+                if random.randint(0, 1) == 0:
+                    lanes = random.sample(range(4), 2)
+                    return [EvilBlock(lane) for lane in lanes]
+                else:
+                    lanes = random.sample(range(4), 2)
+                    return [Heart(lane) for lane in lanes]
         else:
-            if random.randint(0, 15) != 0:
+            if random.randint(0, 15) > 5:
                 color = random.choice(['red', 'green', 'blue', 'yellow'])
                 lane = random.randint(0, 3)
                 return [Square(color, lane)]
             else:
-                lane = random.randint(0, 3)
-                return [Heart(lane)]
+                if random.randint(0, 1) == 0:
+                    lane = random.randint(0, 3)
+                    return [Heart(lane)]
+                else:
+                    lane = random.randint(0, 3)
+                    return [EvilBlock(lane)]
 
     def scroll_records(self, button):
         scroll_offset = self.scroll_offset
@@ -631,8 +680,10 @@ class Game:
                     elif event.key == pygame.K_4:
                         self.set_speed()
                     elif event.key == pygame.K_5:
-                        self.about_game()
+                        self.activate_evil_blocks()
                     elif event.key == pygame.K_6:
+                        self.about_game()
+                    elif event.key == pygame.K_7:
                         sys.exit()
 
     def game_loop(self):
