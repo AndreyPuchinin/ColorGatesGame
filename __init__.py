@@ -660,25 +660,31 @@ class Game:
                 colors = random.sample(['red', 'green', 'blue', 'yellow'], 2)
                 lanes = random.sample(range(4), 2)
                 return [Square(colors[i], lanes[i]) for i in range(2)]
-            else:
+            elif self.evil_blocks_activated:
                 if random.randint(0, 1) == 0:
                     lanes = random.sample(range(4), 2)
                     return [EvilBlock(lane) for lane in lanes]
                 else:
                     lanes = random.sample(range(4), 2)
-                    return [Heart(lane) for lane in lanes]
+                    return [Heart(lsane) for lane in lanes]
+            else:
+                lanes = random.sample(range(4), 2)
+                return [Heart(lane) for lane in lanes]
         else:
             if random.randint(0, 15) > 5:
                 color = random.choice(['red', 'green', 'blue', 'yellow'])
                 lane = random.randint(0, 3)
                 return [Square(color, lane)]
-            else:
+            elif self.evil_blocks_activated:
                 if random.randint(0, 1) == 0:
                     lane = random.randint(0, 3)
                     return [Heart(lane)]
                 else:
                     lane = random.randint(0, 3)
                     return [EvilBlock(lane)]
+            else:
+                lane = random.randint(0, 3)
+                return [Heart(lane)]
 
     def scroll_records(self, button):
         scroll_offset = self.scroll_offset
