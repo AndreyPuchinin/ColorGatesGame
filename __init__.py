@@ -666,7 +666,7 @@ class Game:
                     return [EvilBlock(lane) for lane in lanes]
                 else:
                     lanes = random.sample(range(4), 2)
-                    return [Heart(lsane) for lane in lanes]
+                    return [Heart(lanes) for lane in lanes]
             else:
                 lanes = random.sample(range(4), 2)
                 return [Heart(lane) for lane in lanes]
