@@ -2,20 +2,32 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Fruit Hero</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Comic Sans MS', 'Arial', sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; overflow: hidden; user-select: none; }
-        #gameContainer { width: 100vw; height: 100vh; position: relative; display: flex; flex-direction: column; }
-        #gameArea { flex: 1; position: relative; overflow: hidden; background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%); }
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body { font-family: 'Comic Sans MS', 'Arial', sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); overflow: hidden; user-select: none; -webkit-user-select: none; touch-action: manipulation; }
+        button { touch-action: manipulation; }
+
+        :root {
+            --gates-h: 80px;
+            --expected-h: 60px;
+            --selection-h: 70px;
+            --bottom-h: 60px;
+            --total-bottom: calc(var(--gates-h) + var(--expected-h) + var(--selection-h) + var(--bottom-h));
+        }
+
+        #gameArea { position: fixed; top: 0; left: 0; right: 0; bottom: var(--total-bottom); background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%); overflow: hidden; }
         .lane { position: absolute; top: 0; bottom: 0; width: 25%; border-right: 1px solid rgba(255,255,255,0.1); }
         .lane:nth-child(1) { left: 0%; } .lane:nth-child(2) { left: 25%; } .lane:nth-child(3) { left: 50%; } .lane:nth-child(4) { left: 75%; border-right: none; }
         .falling-object { position: absolute; font-size: 40px; text-align: center; width: 80px; height: 80px; line-height: 80px; margin-left: -40px; filter: drop-shadow(0 0 10px rgba(255,255,255,0.3)); animation: bob 1s ease-in-out infinite; }
         @keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
         .bomb { animation: bombPulse 0.5s ease-in-out infinite; }
         @keyframes bombPulse { 0%, 100% { transform: scale(1); filter: drop-shadow(0 0 10px red); } 50% { transform: scale(1.1); filter: drop-shadow(0 0 20px red); } }
-        #gatesSection { height: 80px; display: flex; background: #2d3436; border-top: 3px solid #636e72; border-bottom: 3px solid #636e72; }
+        .pause-btn { position: absolute; top: 10px; right: 10px; z-index: 20; background: rgba(0,0,0,0.5); color: #fff; border: 2px solid #fff; border-radius: 8px; padding: 8px 14px; font-size: 15px; cursor: pointer; font-family: inherit; font-weight: bold; }
+        .pause-btn.hidden { display: none; }
+
+        #gatesSection { position: fixed; bottom: calc(var(--expected-h) + var(--selection-h) + var(--bottom-h)); left: 0; right: 0; height: var(--gates-h); display: flex; background: #2d3436; border-top: 3px solid #636e72; border-bottom: 3px solid #636e72; z-index: 5; }
         .gate-wrapper { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; border-right: 1px solid rgba(255,255,255,0.1); position: relative; cursor: pointer; }
         .gate-wrapper:last-child { border-right: none; }
         .gate { width: 60px; height: 50px; border: 3px solid #fdcb6e; border-radius: 8px; background: #d63031; position: relative; transition: all 0.15s; display: flex; align-items: center; justify-content: center; font-size: 24px; color: #fff; font-weight: bold; cursor: pointer; }
@@ -25,7 +37,8 @@
         .gate.open::after { content: "✓"; font-size: 22px; }
         @keyframes gateGlow { 0%, 100% { box-shadow: 0 0 10px #2ecc71; } 50% { box-shadow: 0 0 20px #2ecc71, 0 0 30px rgba(46, 204, 113, 0.5); } }
         .gate-key { position: absolute; bottom: -20px; font-size: 12px; color: #fff; background: rgba(0,0,0,0.5); padding: 2px 6px; border-radius: 4px; }
-        #expectedSection { height: 60px; display: flex; background: #0984e3; }
+
+        #expectedSection { position: fixed; bottom: calc(var(--selection-h) + var(--bottom-h)); left: 0; right: 0; height: var(--expected-h); display: flex; background: #0984e3; z-index: 5; }
         .expected-slot { flex: 1; display: flex; align-items: center; justify-content: center; font-size: 36px; border-right: 1px solid rgba(255,255,255,0.1); position: relative; }
         .expected-slot:last-child { border-right: none; }
         .expected-slot.empty { opacity: 0.2; background: #1e272e; }
@@ -36,7 +49,8 @@
         @keyframes flashApply { 0% { background: #f1c40f; transform: scale(1); } 50% { background: #f39c12; transform: scale(1.1); } 100% { background: #0984e3; transform: scale(1); } }
         @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
         @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.2); } }
-        #selectionBar { height: 70px; display: flex; background: #2c3e50; border-top: 2px solid #34495e; }
+
+        #selectionBar { position: fixed; bottom: var(--bottom-h); left: 0; right: 0; height: var(--selection-h); display: flex; background: #2c3e50; border-top: 2px solid #34495e; z-index: 5; }
         .selection-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; border-right: 1px solid rgba(255,255,255,0.1); cursor: pointer; transition: all 0.15s; position: relative; }
         .selection-item:last-child { border-right: none; }
         .selection-item.active { background: #f39c12; transform: scale(1.05); }
@@ -44,15 +58,17 @@
         .selection-item .emoji { font-size: 32px; }
         .selection-item .label { font-size: 10px; color: #fff; margin-top: 2px; }
         .fruit-key { position: absolute; top: 2px; right: 4px; font-size: 10px; color: #fff; background: rgba(0,0,0,0.5); padding: 1px 5px; border-radius: 3px; }
-        #bottomBar { height: 60px; display: flex; justify-content: space-between; align-items: center; background: #1a1a2e; padding: 0 20px; border-top: 2px solid #2d3436; }
+
+        #bottomBar { position: fixed; bottom: 0; left: 0; right: 0; height: var(--bottom-h); display: flex; justify-content: space-between; align-items: center; background: #1a1a2e; padding: 0 20px; border-top: 2px solid #2d3436; z-index: 5; }
         #scoreDisplay { color: #fff; font-size: 24px; font-weight: bold; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); }
         #comboDisplay { color: #f1c40f; font-size: 20px; font-weight: bold; }
         #livesDisplay { display: flex; gap: 8px; align-items: center; }
-        .life { transition: all 0.3s; font-size: 30px; }
+        .life { transition: opacity 0.3s, font-size 0.3s; font-size: 30px; }
         .life.big { font-size: 40px; }
         .life.small { font-size: 30px; }
-        .life.lost { opacity: 0; visibility: hidden; }
-        .menu-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); display: flex; flex-direction: column; align-items: center; z-index: 100; color: #fff; overflow-y: auto; padding: 30px 20px; }
+        .life.lost { opacity: 0; }
+
+        .menu-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); display: flex; flex-direction: column; align-items: center; z-index: 100; color: #fff; overflow-y: auto; padding: 30px 20px; }
         .menu-screen.hidden { display: none; }
         .menu-title { font-size: 48px; margin-bottom: 20px; text-shadow: 3px 3px 6px rgba(0,0,0,0.5); text-align: center; flex-shrink: 0; }
         .menu-button { padding: 15px 40px; margin: 10px; font-size: 20px; border: none; border-radius: 10px; cursor: pointer; background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; font-weight: bold; transition: all 0.2s; min-width: 250px; flex-shrink: 0; }
@@ -62,7 +78,10 @@
         .menu-option select, .menu-option input { padding: 8px 15px; font-size: 16px; border-radius: 5px; border: none; background: #333; color: #fff; }
         .menu-option .readonly-val { padding: 8px 15px; font-size: 16px; border-radius: 5px; background: #444; color: #f1c40f; font-weight: bold; }
         .records-list { max-height: 300px; overflow-y: auto; margin: 20px; padding: 15px; background: rgba(255,255,255,0.1); border-radius: 10px; min-width: 400px; flex-shrink: 0; }
-        .record-entry { display: flex; justify-content: space-between; padding: 8px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .record-entry { display: flex; justify-content: space-between; align-items: center; padding: 8px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .record-info { display: flex; flex-direction: column; }
+        .record-name { font-weight: bold; }
+        .record-date { font-size: 11px; color: #888; margin-top: 2px; }
         .key-bind-list { margin: 20px; max-height: 400px; overflow-y: auto; flex-shrink: 0; }
         .key-bind-row { display: flex; align-items: center; margin: 8px 0; gap: 15px; }
         .key-bind-row label { min-width: 150px; }
@@ -75,7 +94,7 @@
         .float-score.negative { color: #e74c3c; }
         @keyframes floatUp { 0% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-60px); } }
         #modeIndicator { position: absolute; top: 10px; left: 10px; color: #fff; font-size: 14px; background: rgba(0,0,0,0.5); padding: 5px 10px; border-radius: 5px; z-index: 10; }
-        .pause-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 150; color: #fff; }
+        .pause-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 150; color: #fff; }
         .pause-overlay.hidden { display: none; }
         .pause-title { font-size: 60px; text-shadow: 3px 3px 6px rgba(0,0,0,0.5); margin-bottom: 30px; }
         #highscoreInput { padding: 15px 20px; font-size: 24px; border-radius: 10px; border: 3px solid #667eea; background: #333; color: #fff; text-align: center; margin: 15px; width: 200px; }
@@ -88,156 +107,192 @@
         .step-list li { counter-increment: step; margin: 8px 0; padding-left: 35px; position: relative; }
         .step-list li::before { content: counter(step); position: absolute; left: 0; top: 2px; width: 24px; height: 24px; background: #f39c12; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px; }
         .esc-hint { color: #aaa; font-size: 14px; margin-top: 15px; flex-shrink: 0; }
+
+        @media (max-width: 600px) {
+            :root {
+                --gates-h: 62px;
+                --expected-h: 46px;
+                --selection-h: 58px;
+                --bottom-h: 50px;
+            }
+            .falling-object { font-size: 26px; width: 50px; height: 50px; line-height: 50px; margin-left: -25px; }
+            .gate { width: 44px; height: 38px; font-size: 18px; }
+            .gate.closed::after { font-size: 14px; }
+            .gate.open::after { font-size: 16px; }
+            .gate-key { font-size: 10px; bottom: -16px; padding: 1px 4px; }
+            .expected-slot { font-size: 24px; }
+            .selection-item .emoji { font-size: 22px; }
+            .selection-item .label { font-size: 8px; }
+            .fruit-key { font-size: 8px; padding: 1px 3px; }
+            #bottomBar { padding: 0 10px; }
+            #scoreDisplay { font-size: 16px; }
+            #comboDisplay { font-size: 13px; }
+            .life { font-size: 20px; }
+            .life.big { font-size: 28px; }
+            .menu-title { font-size: 30px; }
+            .menu-button { min-width: 200px; padding: 12px 24px; font-size: 16px; margin: 6px; }
+            .tutorial { padding: 14px; margin: 10px; font-size: 14px; }
+            .notification { font-size: 16px; padding: 14px 20px; }
+            .float-score { font-size: 20px; }
+            .pause-title { font-size: 40px; }
+            .menu-option { font-size: 15px; gap: 8px; }
+            .menu-option label { min-width: 130px; }
+            .records-list { min-width: 0; width: 92%; }
+            .record-entry { font-size: 13px; }
+            .record-date { font-size: 10px; }
+            .pause-btn { padding: 6px 10px; font-size: 13px; }
+            #modeIndicator { font-size: 11px; }
+        }
     </style>
 </head>
 <body>
-    <div id="gameContainer">
-        <div id="gameArea">
-            <div class="lane"></div><div class="lane"></div><div class="lane"></div><div class="lane"></div>
-            <div id="modeIndicator"></div>
-            <div class="pause-overlay hidden" id="pauseOverlay">
-                <div class="pause-title">&#9208; ПАУЗА</div>
-                <button class="menu-button" id="btnPauseResume">&#9654; Продолжить</button>
-                <button class="menu-button" id="btnPauseMenu">&#127968; В меню</button>
-                <button class="menu-button" id="btnPauseSurrender">&#127987; Сдаться</button>
+    <div id="gameArea">
+        <div class="lane"></div><div class="lane"></div><div class="lane"></div><div class="lane"></div>
+        <div id="modeIndicator"></div>
+        <button class="pause-btn hidden" id="pauseBtn">&#9208; Пауза</button>
+        <div class="pause-overlay hidden" id="pauseOverlay">
+            <div class="pause-title">&#9208; ПАУЗА</div>
+            <button class="menu-button" id="btnPauseResume">&#9654; Продолжить</button>
+            <button class="menu-button" id="btnPauseMenu">&#127968; В меню</button>
+            <button class="menu-button" id="btnPauseSurrender">&#127987; Сдаться</button>
+        </div>
+    </div>
+    <div id="gatesSection">
+        <div class="gate-wrapper" data-lane="0"><div class="gate closed" id="gate0"><span class="gate-key" id="gateKey0">A</span></div></div>
+        <div class="gate-wrapper" data-lane="1"><div class="gate closed" id="gate1"><span class="gate-key" id="gateKey1">S</span></div></div>
+        <div class="gate-wrapper" data-lane="2"><div class="gate closed" id="gate2"><span class="gate-key" id="gateKey2">D</span></div></div>
+        <div class="gate-wrapper" data-lane="3"><div class="gate closed" id="gate3"><span class="gate-key" id="gateKey3">F</span></div></div>
+    </div>
+    <div id="expectedSection">
+        <div class="expected-slot empty" id="expected0"></div>
+        <div class="expected-slot empty" id="expected1"></div>
+        <div class="expected-slot empty" id="expected2"></div>
+        <div class="expected-slot empty" id="expected3"></div>
+    </div>
+    <div id="selectionBar">
+        <div class="selection-item" data-fruit="0"><span class="fruit-key" id="fruitKey0">J</span><span class="emoji">&#127815;</span><span class="label">Виноград</span></div>
+        <div class="selection-item" data-fruit="1"><span class="fruit-key" id="fruitKey1">K</span><span class="emoji">&#127824;</span><span class="label">Груша</span></div>
+        <div class="selection-item" data-fruit="2"><span class="fruit-key" id="fruitKey2">L</span><span class="emoji">&#127827;</span><span class="label">Клубника</span></div>
+        <div class="selection-item" data-fruit="3"><span class="fruit-key" id="fruitKey3">;</span><span class="emoji">&#127826;</span><span class="label">Черешня</span></div>
+    </div>
+    <div id="bottomBar">
+        <div><div id="scoreDisplay">Очки: 0</div><div id="comboDisplay"></div></div>
+        <div id="livesDisplay">
+            <span class="life small" id="life0">&#10084;&#65039;</span>
+            <span class="life small" id="life1">&#10084;&#65039;</span>
+            <span class="life small" id="life2">&#10084;&#65039;</span>
+            <span class="life big" id="life3">&#10084;&#65039;</span>
+        </div>
+    </div>
+    <div class="menu-screen" id="menuScreen">
+        <div class="menu-title">&#127928; Fruit Hero &#127815;</div>
+        <div class="tutorial">
+            <h3>&#127918; Как играть:</h3>
+            <ol class="step-list">
+                <li>Видишь, что клубника &#127827; падает в 3-ю дорожку?</li>
+                <li>Нажми на клубнику внизу (или клавишу <code class="key-hint-fruits-single" data-idx="2">L</code>) — она станет оранжевой!</li>
+                <li>Теперь нажми на 3-и ворота (или клавишу <code class="key-hint-gates-single" data-idx="2">D</code>) — они станут зелёными с клубникой!</li>
+                <li>Повтори нажатие на ворота БЕЗ фрукта — они закроются!</li>
+            </ol>
+            <p style="margin-top:10px;"><code class="key-hint-gates">A S D F</code> — открыть/закрыть ворота</p>
+            <p><code class="key-hint-fruits">J K L ;</code> — выбрать фрукт</p>
+            <div class="hint-box">
+                <strong>&#128161; Можно и мышкой/пальцем!</strong> Кликни по фрукту внизу → он подсветится. Кликни по воротам → фрукт применится!<br>
+                <strong>&#128161; Можно и с зажатием!</strong> Зажми клавишу ворот + клавишу фрукта → фрукт применится к этим воротам!<br>
+                <strong>&#128161; Держи фрукт зажатым!</strong> Если ты зажал фрукт и применил его — он продолжит действовать, пока держишь клавишу!
             </div>
+            <p>&#10084;&#65039; — сердечки дают +1 жизнь (ловить не обязательно!) &#128163; — закрой ворота перед бомбой! <code>ESC</code> или кнопка "Пауза" — пауза</p>
         </div>
-        <div id="gatesSection">
-            <div class="gate-wrapper" data-lane="0"><div class="gate closed" id="gate0"><span class="gate-key" id="gateKey0">A</span></div></div>
-            <div class="gate-wrapper" data-lane="1"><div class="gate closed" id="gate1"><span class="gate-key" id="gateKey1">S</span></div></div>
-            <div class="gate-wrapper" data-lane="2"><div class="gate closed" id="gate2"><span class="gate-key" id="gateKey2">D</span></div></div>
-            <div class="gate-wrapper" data-lane="3"><div class="gate closed" id="gate3"><span class="gate-key" id="gateKey3">F</span></div></div>
-        </div>
-        <div id="expectedSection">
-            <div class="expected-slot empty" id="expected0"></div>
-            <div class="expected-slot empty" id="expected1"></div>
-            <div class="expected-slot empty" id="expected2"></div>
-            <div class="expected-slot empty" id="expected3"></div>
-        </div>
-        <div id="selectionBar">
-            <div class="selection-item" data-fruit="0"><span class="fruit-key" id="fruitKey0">J</span><span class="emoji">&#127822;</span><span class="label">Яблоко</span></div>
-            <div class="selection-item" data-fruit="1"><span class="fruit-key" id="fruitKey1">K</span><span class="emoji">&#127824;</span><span class="label">Груша</span></div>
-            <div class="selection-item" data-fruit="2"><span class="fruit-key" id="fruitKey2">L</span><span class="emoji">&#127827;</span><span class="label">Клубника</span></div>
-            <div class="selection-item" data-fruit="3"><span class="fruit-key" id="fruitKey3">;</span><span class="emoji">&#127826;</span><span class="label">Черешня</span></div>
-        </div>
-        <div id="bottomBar">
-            <div><div id="scoreDisplay">Очки: 0</div><div id="comboDisplay"></div></div>
-            <div id="livesDisplay">
-                <span class="life small" id="life0">&#10084;&#65039;</span>
-                <span class="life small" id="life1">&#10084;&#65039;</span>
-                <span class="life small" id="life2">&#10084;&#65039;</span>
-                <span class="life big" id="life3">&#10084;&#65039;</span>
+        <button class="menu-button" id="btnPlay">&#9654; Играть</button>
+        <button class="menu-button" id="btnSettings">&#9881; Настройки</button>
+        <button class="menu-button" id="btnRecords">&#127942; Рекорды</button>
+        <button class="menu-button" id="btnHelp">&#10067; Помощь</button>
+    </div>
+    <div class="menu-screen hidden" id="settingsScreen">
+        <div class="menu-title">&#9881; Настройки</div>
+        <div class="menu-option"><label>Скорость падения:</label><select id="speedSelect"><option value="1">Медленно</option><option value="2" selected>Средне</option><option value="3">Быстро</option><option value="4">Очень быстро</option></select></div>
+        <div class="menu-option"><label>Включить бомбы:</label><input type="checkbox" id="bombsToggle" checked></div>
+        <div class="menu-option"><label>Режим игры:</label><select id="modeSelect"><option value="normal">Обычный</option><option value="shuffle">С перемешиванием</option><option value="double">Двойные объекты</option><option value="chaos">Хаос (2+3)</option></select></div>
+        <div class="menu-option"><label>Множитель (авто):</label><span class="readonly-val" id="multDisplay">x3.0</span></div>
+        <button class="menu-button" id="btnKeyBindings">&#127929; Настроить клавиши</button>
+        <button class="menu-button" id="btnSettingsBack">&#8592; Назад</button>
+        <p class="esc-hint">ESC — назад в меню</p>
+    </div>
+    <div class="menu-screen hidden" id="keyBindingsScreen">
+        <div class="menu-title">&#127929; Настройка клавиш</div>
+        <p style="margin-bottom:10px;">Нажмите "Изменить" и затем нужную кнопку</p>
+        <div class="key-bind-list" id="keyBindList"></div>
+        <button class="menu-button" id="btnKeyBindingsReset">&#8634; Сбросить</button>
+        <button class="menu-button" id="btnKeyBindingsBack">&#8592; Назад</button>
+        <p class="esc-hint">ESC — назад в меню</p>
+    </div>
+    <div class="menu-screen hidden" id="recordsScreen">
+        <div class="menu-title">&#127942; Рекорды</div>
+        <div class="records-list" id="recordsList"><p style="text-align:center;">Пока нет рекордов.</p></div>
+        <button class="menu-button" id="btnRecordsClear">&#128465; Очистить</button>
+        <button class="menu-button" id="btnRecordsBack">&#8592; Назад</button>
+        <p class="esc-hint">ESC — назад в меню</p>
+    </div>
+    <div class="menu-screen hidden" id="highscoreScreen">
+        <div class="menu-title">&#127942; Новый рекорд!</div>
+        <p style="font-size:20px;">Результат: <span id="highscoreValue" style="color:#f1c40f;font-weight:bold;"></span></p>
+        <input type="text" id="highscoreInput" placeholder="Ваше имя" maxlength="15" autocomplete="off">
+        <button class="menu-button" id="btnSaveHighscore">&#128190; Сохранить</button>
+        <button class="menu-button" id="btnSkipHighscore">Пропустить</button>
+        <p class="esc-hint">ESC — пропустить</p>
+    </div>
+    <div class="menu-screen hidden" id="gameOverScreen">
+        <div class="menu-title">&#128148; Игра окончена</div>
+        <p style="font-size:24px;">Результат: <span id="gameOverScore" style="color:#f1c40f;font-weight:bold;"></span></p>
+        <p style="font-size:16px; margin-bottom:20px;">(множитель: x<span id="gameOverMult"></span>)</p>
+        <p id="gameOverRecordMsg" style="font-size:14px; color:#aaa; margin-bottom:10px;"></p>
+        <button class="menu-button" id="btnPlayAgain">&#128260; Играть снова</button>
+        <button class="menu-button" id="btnBackToMenu">&#127968; В меню</button>
+    </div>
+    <div class="menu-screen hidden" id="helpScreen">
+        <div class="menu-title">&#10067; Как играть</div>
+        <div class="tutorial" style="max-height:none;">
+            <h3>&#127919; Цель</h3><p>Ловите фрукты в правильные ворота!</p>
+            <h3>&#9881; Управление клавиатурой</h3>
+            <ol class="step-list">
+                <li>Нажми клавишу фрукта (<code class="key-hint-fruits">J K L ;</code>) — он подсветится оранжевым!</li>
+                <li>Нажми клавишу ворот (<code class="key-hint-gates">A S D F</code>) — фрукт применится к этим воротам и они откроются!</li>
+                <li>Если нажать на ворота БЕЗ выбранного фрукта — они закроются (если были открыты).</li>
+            </ol>
+            <div class="hint-box">
+                <strong>&#128293; Держи фрукт зажатым!</strong><br>
+                Если ты зажал клавишу фрукта и применил его к воротам — фрукт продолжит действовать, пока ты держишь клавишу! Нажимай на другие ворота — фрукт применится и к ним!<br><br>
+                <strong>&#128293; Можно зажимать!</strong><br>
+                Зажми клавишу ворот и нажми клавишу фрукта (или наоборот!) — фрукт применится к этим воротам. Порядок не важен!
             </div>
+            <h3>&#128433; Управление мышкой / пальцем</h3>
+            <ol class="step-list">
+                <li>Кликни по фрукту внизу — он подсветится оранжевым!</li>
+                <li>Кликни по воротам — фрукт применится и ворота откроются!</li>
+                <li>Кликни ещё раз по тому же фрукту — он перестанет быть активным.</li>
+                <li>Если кликнуть по воротам без активного фрукта: открытые закроются, а закрытые покажут ошибку!</li>
+            </ol>
+            <h3>&#128203; Правила</h3>
+            <p>&#9989; Фрукт ловится, если ворота открыты И ожидался правильный фрукт.</p>
+            <p>&#10060; Ворота закрыты на фрукт = потеря жизни (кроме бомб).</p>
+            <p>&#10060; Не тот фрукт = потеря жизни!</p>
+            <p>&#128163; Перед бомбой закройте ворота!</p>
+            <p>&#10084;&#65039; Сердечки дают +1 жизнь (максимум 4). Ловить не обязательно!</p>
+            <p>&#10067; Если ворота открыты, но фрукт не выбран — там стоит вопросик. Выбери фрукт!</p>
+            <h3>&#127918; Режимы</h3>
+            <p><strong>Обычный:</strong> стандартная игра.</p>
+            <p><strong>Перемешивание:</strong> порядок фруктов и клавиш периодически меняется!</p>
+            <p><strong>Двойные:</strong> падают 2 объекта одновременно.</p>
+            <p><strong>Хаос:</strong> перемешивание + двойные.</p>
+            <h3>&#127942; Рекорды</h3>
+            <p>Рекорд засчитывается только если взвешенные очки (очки × множитель) выше предыдущего абсолютного рекорда. Множитель = Скорость + Режим + Бомбы.</p>
         </div>
-        <div class="menu-screen" id="menuScreen">
-            <div class="menu-title">&#127928; Fruit Hero &#127822;</div>
-            <div class="tutorial">
-                <h3>&#127918; Как играть:</h3>
-                <ol class="step-list">
-                    <li>Видишь, что клубника &#127827; падает в 3-ю дорожку?</li>
-                    <li>Нажми на клубнику внизу (или клавишу <code class="key-hint-fruits-single" data-idx="2">L</code>) — она станет оранжевой!</li>
-                    <li>Теперь нажми на 3-и ворота (или клавишу <code class="key-hint-gates-single" data-idx="2">D</code>) — они станут зелёными с клубникой!</li>
-                    <li>Повтори нажатие на ворота БЕЗ фрукта — они закроются!</li>
-                </ol>
-                <p style="margin-top:10px;"><code class="key-hint-gates">A S D F</code> — открыть/закрыть ворота</p>
-                <p><code class="key-hint-fruits">J K L ;</code> — выбрать фрукт</p>
-                <div class="hint-box">
-                    <strong>&#128161; Можно и мышкой!</strong> Кликни по фрукту внизу → он подсветится. Кликни по воротам → фрукт применится!<br>
-                    <strong>&#128161; Можно и с зажатием!</strong> Зажми клавишу ворот + клавишу фрукта → фрукт применится к этим воротам!<br>
-                    <strong>&#128161; Держи фрукт зажатым!</strong> Если ты зажал фрукт и применил его — он продолжит действовать, пока держишь клавишу!
-                </div>
-                <p>&#10084;&#65039; — сердечки дают +1 жизнь (ловить не обязательно!) &#128163; — закрой ворота перед бомбой! <code>ESC</code> — пауза</p>
-            </div>
-            <button class="menu-button" id="btnPlay">&#9654; Играть</button>
-            <button class="menu-button" id="btnSettings">&#9881; Настройки</button>
-            <button class="menu-button" id="btnRecords">&#127942; Рекорды</button>
-            <button class="menu-button" id="btnHelp">&#10067; Помощь</button>
-        </div>
-        <div class="menu-screen hidden" id="settingsScreen">
-            <div class="menu-title">&#9881; Настройки</div>
-            <div class="menu-option"><label>Скорость падения:</label><select id="speedSelect"><option value="1">Медленно</option><option value="2" selected>Средне</option><option value="3">Быстро</option><option value="4">Очень быстро</option></select></div>
-            <div class="menu-option"><label>Включить бомбы:</label><input type="checkbox" id="bombsToggle" checked></div>
-            <div class="menu-option"><label>Режим игры:</label><select id="modeSelect"><option value="normal">Обычный</option><option value="shuffle">С перемешиванием</option><option value="double">Двойные объекты</option><option value="chaos">Хаос (2+3)</option></select></div>
-            <div class="menu-option"><label>Множитель (авто):</label><span class="readonly-val" id="multDisplay">x3.0</span></div>
-            <button class="menu-button" id="btnKeyBindings">&#127929; Настроить клавиши</button>
-            <button class="menu-button" id="btnSettingsBack">&#8592; Назад</button>
-            <p class="esc-hint">ESC — назад в меню</p>
-        </div>
-        <div class="menu-screen hidden" id="keyBindingsScreen">
-            <div class="menu-title">&#127929; Настройка клавиш</div>
-            <p style="margin-bottom:10px;">Нажмите "Изменить" и затем нужную кнопку</p>
-            <div class="key-bind-list" id="keyBindList"></div>
-            <button class="menu-button" id="btnKeyBindingsReset">&#8634; Сбросить</button>
-            <button class="menu-button" id="btnKeyBindingsBack">&#8592; Назад</button>
-            <p class="esc-hint">ESC — назад в меню</p>
-        </div>
-        <div class="menu-screen hidden" id="recordsScreen">
-            <div class="menu-title">&#127942; Рекорды</div>
-            <div class="records-list" id="recordsList"><p style="text-align:center;">Пока нет рекордов.</p></div>
-            <button class="menu-button" id="btnRecordsClear">&#128465; Очистить</button>
-            <button class="menu-button" id="btnRecordsBack">&#8592; Назад</button>
-            <p class="esc-hint">ESC — назад в меню</p>
-        </div>
-        <div class="menu-screen hidden" id="highscoreScreen">
-            <div class="menu-title">&#127942; Новый рекорд!</div>
-            <p style="font-size:20px;">Результат: <span id="highscoreValue" style="color:#f1c40f;font-weight:bold;"></span></p>
-            <input type="text" id="highscoreInput" placeholder="Ваше имя" maxlength="15" autocomplete="off">
-            <button class="menu-button" id="btnSaveHighscore">&#128190; Сохранить</button>
-            <button class="menu-button" id="btnSkipHighscore">Пропустить</button>
-            <p class="esc-hint">ESC — пропустить</p>
-        </div>
-        <div class="menu-screen hidden" id="gameOverScreen">
-            <div class="menu-title">&#128148; Игра окончена</div>
-            <p style="font-size:24px;">Результат: <span id="gameOverScore" style="color:#f1c40f;font-weight:bold;"></span></p>
-            <p style="font-size:16px; margin-bottom:20px;">(множитель: x<span id="gameOverMult"></span>)</p>
-            <button class="menu-button" id="btnPlayAgain">&#128260; Играть снова</button>
-            <button class="menu-button" id="btnBackToMenu">&#127968; В меню</button>
-        </div>
-        <div class="menu-screen hidden" id="helpScreen">
-            <div class="menu-title">&#10067; Как играть</div>
-            <div class="tutorial" style="max-height:none;">
-                <h3>&#127919; Цель</h3><p>Ловите фрукты в правильные ворота!</p>
-                <h3>&#9881; Управление клавиатурой</h3>
-                <ol class="step-list">
-                    <li>Нажми клавишу фрукта (<code class="key-hint-fruits">J K L ;</code>) — он подсветится оранжевым!</li>
-                    <li>Нажми клавишу ворот (<code class="key-hint-gates">A S D F</code>) — фрукт применится к этим воротам и они откроются!</li>
-                    <li>Если нажать на ворота БЕЗ выбранного фрукта — они закроются (если были открыты).</li>
-                </ol>
-                <div class="hint-box">
-                    <strong>&#128293; Держи фрукт зажатым!</strong><br>
-                    Если ты зажал клавишу фрукта и применил его к воротам — фрукт продолжит действовать, пока ты держишь клавишу! Нажимай на другие ворота — фрукт применится и к ним!<br><br>
-                    <strong>&#128293; Можно зажимать!</strong><br>
-                    Зажми клавишу ворот и нажми клавишу фрукта (или наоборот!) — фрукт применится к этим воротам. Порядок не важен!
-                </div>
-                <h3>&#128433; Управление мышкой</h3>
-                <ol class="step-list">
-                    <li>Кликни по фрукту внизу — он подсветится оранжевым!</li>
-                    <li>Кликни по воротам — фрукт применится и ворота откроются!</li>
-                    <li>Кликни ещё раз по тому же фрукту — он перестанет быть активным.</li>
-                    <li>Если кликнуть по воротам без активного фрукта: открытые закроются, а закрытые покажут ошибку!</li>
-                </ol>
-                <h3>&#128203; Правила</h3>
-                <p>&#9989; Фрукт ловится, если ворота открыты И ожидался правильный фрукт.</p>
-                <p>&#10060; Ворота закрыты на фрукт = потеря жизни (кроме бомб).</p>
-                <p>&#10060; Не тот фрукт = потеря жизни!</p>
-                <p>&#128163; Перед бомбой закройте ворота!</p>
-                <p>&#10084;&#65039; Сердечки дают +1 жизнь (максимум 4). Ловить не обязательно — не поймал, ничего страшного!</p>
-                <p>&#10067; Если ворота открыты, но фрукт не выбран — там стоит вопросик. Выбери фрукт!</p>
-                <h3>&#127918; Режимы</h3>
-                <p><strong>Обычный:</strong> стандартная игра.</p>
-                <p><strong>Перемешивание:</strong> порядок фруктов и клавиш периодически меняется!</p>
-                <p><strong>Двойные:</strong> падают 2 объекта одновременно.</p>
-                <p><strong>Хаос:</strong> перемешивание + двойные.</p>
-                <h3>&#127942; Множитель (автоматический!)</h3>
-                <p>Множитель = Скорость + Режим + Бомбы. Чем сложнее — тем больше очков!</p>
-            </div>
-            <button class="menu-button" id="btnHelpBack">&#8592; Назад</button>
-            <p class="esc-hint">ESC — назад в меню</p>
-        </div>
+        <button class="menu-button" id="btnHelpBack">&#8592; Назад</button>
+        <p class="esc-hint">ESC — назад в меню</p>
     </div>
     <script>
     var FRUITS = [
-        { emoji: String.fromCodePoint(127822), name: 'Яблоко' },
+        { emoji: String.fromCodePoint(127815), name: 'Виноград' },
         { emoji: String.fromCodePoint(127824), name: 'Груша' },
         { emoji: String.fromCodePoint(127827), name: 'Клубника' },
         { emoji: String.fromCodePoint(127826), name: 'Черешня' }
@@ -271,6 +326,17 @@
     function codeToLabel(code) {
         var m = {'KeyA':'A','KeyB':'B','KeyC':'C','KeyD':'D','KeyE':'E','KeyF':'F','KeyG':'G','KeyH':'H','KeyI':'I','KeyJ':'J','KeyK':'K','KeyL':'L','KeyM':'M','KeyN':'N','KeyO':'O','KeyP':'P','KeyQ':'Q','KeyR':'R','KeyS':'S','KeyT':'T','KeyU':'U','KeyV':'V','KeyW':'W','KeyX':'X','KeyY':'Y','KeyZ':'Z','Digit1':'1','Digit2':'2','Digit3':'3','Digit4':'4','Digit5':'5','Digit6':'6','Digit7':'7','Digit8':'8','Digit9':'9','Digit0':'0','Semicolon':';','Comma':',','Period':'.','Slash':'/','BracketLeft':'[','BracketRight':']','Backslash':'\\','Quote':"'",'Minus':'-','Equal':'=','Escape':'ESC','Space':'Space','ArrowUp':'UP','ArrowDown':'DOWN','ArrowLeft':'LEFT','ArrowRight':'RIGHT','Enter':'ENTER','Tab':'TAB','Backspace':'BACK','ShiftLeft':'SHIFT','ShiftRight':'SHIFT','ControlLeft':'CTRL','ControlRight':'CTRL','AltLeft':'ALT','AltRight':'ALT'};
         return m[code] || code;
+    }
+    function formatDate(isoStr) {
+        if (!isoStr) return '';
+        var d = new Date(isoStr);
+        if (isNaN(d.getTime())) return '';
+        var day = ('0' + d.getDate()).slice(-2);
+        var month = ('0' + (d.getMonth() + 1)).slice(-2);
+        var year = d.getFullYear();
+        var hours = ('0' + d.getHours()).slice(-2);
+        var minutes = ('0' + d.getMinutes()).slice(-2);
+        return day + '.' + month + '.' + year + ' ' + hours + ':' + minutes;
     }
     function updateAllKeyHints() {
         var gateKeys = [], fruitKeys = [];
@@ -351,12 +417,10 @@
             if (!this.gates[obj.lane]) { this.combo++; var p = Math.round(20*this.getMult()); this.score += p; this.showFloatScore(obj, '+'+p, false); }
             else { this.loseLife(obj, 'Бомба! Закрой ворота!'); }
         } else if (obj.type === 'heart') {
-            // Hearts are optional: catch = +1 life, miss = nothing
             if (this.gates[obj.lane]) {
                 if (this.lives < 4) { this.lives++; this.showFloatScore(obj, '+❤️', false); updateLives(); }
                 else { this.showFloatScore(obj, 'Макс ❤️', false); }
             }
-            // If gate closed, heart just passes through - no penalty
         }
         if (obj.element) obj.element.remove();
     };
@@ -444,17 +508,12 @@
         for (var i = 0; i < 4; i++) { items[i].classList.toggle('active', game && game.selectedFruit === i); }
     }
     function updateLives() {
-        if (!game) return;
-        var lives = game.lives;
+        var lives = game ? game.lives : 4;
         for (var i = 0; i < 4; i++) {
             var el = document.getElementById('life' + i);
             el.classList.remove('lost', 'big', 'small');
-            if (i < lives) {
-                if (i === lives - 1) { el.classList.add('big'); }
-                else { el.classList.add('small'); }
-            } else {
-                el.classList.add('lost');
-            }
+            if (i < lives) { if (i === lives - 1) el.classList.add('big'); else el.classList.add('small'); }
+            else { el.classList.add('lost'); }
         }
     }
     function updateScore() {
@@ -474,11 +533,13 @@
         if (ns === 'playing') document.getElementById('pauseOverlay').classList.add('hidden');
         else if (ns === 'paused') document.getElementById('pauseOverlay').classList.remove('hidden');
         else if (map[ns]) document.getElementById(map[ns]).classList.remove('hidden');
+        var pb = document.getElementById('pauseBtn');
+        if (ns === 'playing') pb.classList.remove('hidden'); else pb.classList.add('hidden');
         if (ns === 'keyBindings') renderKeyBindings();
         if (ns === 'records') renderRecords();
         if (ns === 'highscore') setTimeout(function() { document.getElementById('highscoreInput').focus(); }, 100);
         if (ns === 'settings') updateMultDisplay();
-        if (ns === 'menu') updateAllKeyHints();
+        if (ns === 'menu') { updateAllKeyHints(); updateLives(); }
     }
     function startGame() {
         document.querySelectorAll('.falling-object,.notification,.float-score').forEach(function(el) { el.remove(); });
@@ -489,19 +550,33 @@
     }
     function pauseGame() { if (state==='playing') { game.paused=true; setState('paused'); } else if (state==='paused') { game.paused=false; setState('playing'); } }
     function surrenderGame() { if (game && !game.gameOver) { game.paused = false; game.gameOver = true; showGameOver(game.score, game.getMult()); } }
+    function isAbsoluteRecord(weightedScore) {
+        var recs = getRecords();
+        if (recs.length === 0) return true;
+        var maxWS = 0;
+        for (var i = 0; i < recs.length; i++) { if (recs[i].weightedScore > maxWS) maxWS = recs[i].weightedScore; }
+        return weightedScore > maxWS;
+    }
     function showGameOver(score, mult) {
         document.getElementById('gameOverScore').textContent = Math.round(score);
         document.getElementById('gameOverMult').textContent = mult.toFixed(1);
-        var ws = score * mult, recs = getRecords();
-        var isHS = recs.length < 10 || ws > (recs[recs.length-1] ? recs[recs.length-1].weightedScore : 0);
-        if (isHS) { document.getElementById('highscoreValue').textContent = Math.round(ws); setState('highscore'); }
-        else { setState('gameOver'); }
+        var ws = score * mult;
+        var isHS = isAbsoluteRecord(ws);
+        var msgEl = document.getElementById('gameOverRecordMsg');
+        if (isHS) {
+            document.getElementById('highscoreValue').textContent = Math.round(ws);
+            msgEl.textContent = '';
+            setState('highscore');
+        } else {
+            msgEl.textContent = 'Не рекорд. Попробуй ещё!';
+            setState('gameOver');
+        }
     }
     function saveHighscore(name) {
         var recs = getRecords(), ws = game.score * game.getMult();
         recs.push({ name:name||'Аноним', score:game.score, weightedScore:ws, difficulty:game.getMult().toFixed(1), mode:config.mode, date:new Date().toISOString() });
         recs.sort(function(a,b) { return b.weightedScore - a.weightedScore; });
-        if (recs.length > 10) recs.pop();
+        if (recs.length > 10) recs.length = 10;
         localStorage.setItem('fruitHeroRecords', JSON.stringify(recs)); setState('gameOver');
     }
     function getRecords() { try { var d = localStorage.getItem('fruitHeroRecords'); return d ? JSON.parse(d) : []; } catch(e) { return []; } }
@@ -509,7 +584,16 @@
         var recs = getRecords(), el = document.getElementById('recordsList');
         if (recs.length === 0) { el.innerHTML = '<p style="text-align:center;">Пока нет рекордов.</p>'; return; }
         var ml = { normal:'Обычный', shuffle:'Перемеш.', double:'Двойные', chaos:'Хаос' }; var html = '';
-        for (var i=0;i<recs.length;i++) { var r=recs[i]; html += '<div class="record-entry"><span>#'+(i+1)+' '+r.name+'</span><span>'+Math.round(r.weightedScore)+' (x'+r.difficulty+') ['+(ml[r.mode]||r.mode)+']</span></div>'; }
+        for (var i=0;i<recs.length;i++) {
+            var r = recs[i];
+            html += '<div class="record-entry">';
+            html += '<div class="record-info">';
+            html += '<span class="record-name">#'+(i+1)+' '+r.name+'</span>';
+            html += '<span class="record-date">'+formatDate(r.date)+'</span>';
+            html += '</div>';
+            html += '<span>'+Math.round(r.weightedScore)+' (x'+r.difficulty+') ['+(ml[r.mode]||r.mode)+']</span>';
+            html += '</div>';
+        }
         el.innerHTML = html;
     }
     function updateModeIndicator() {
@@ -600,6 +684,7 @@
             else { if (game.gates[idx]) game.closeGate(idx); else game.showNotification('⚠️ Сначала выбери фрукт! (кликни по нему внизу)', '#f39c12'); }
         });
     });
+    document.getElementById('pauseBtn').addEventListener('click', function() { pauseGame(); });
     document.getElementById('btnPauseResume').addEventListener('click', function() { pauseGame(); });
     document.getElementById('btnPauseMenu').addEventListener('click', function() { setState('menu'); });
     document.getElementById('btnPauseSurrender').addEventListener('click', function() { surrenderGame(); });
@@ -623,7 +708,7 @@
     document.getElementById('modeSelect').addEventListener('change', function(e) { config.mode = e.target.value; updateMultDisplay(); });
     function init() {
         try { var sk = localStorage.getItem('fruitHeroKeys'); if (sk) { var p = JSON.parse(sk); for (var k in p) { if (p.hasOwnProperty(k)) config.keys[k] = p[k]; } } } catch(e) {}
-        setState('menu'); updateAllKeyHints(); requestAnimationFrame(gameLoop);
+        setState('menu'); updateAllKeyHints(); updateLives(); requestAnimationFrame(gameLoop);
     }
     init();
     </script>
