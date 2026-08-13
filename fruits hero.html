@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fruit Hero</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Comic Sans MS', 'Arial', sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; overflow: hidden; user-select: none; }
+        #gameContainer { width: 100vw; height: 100vh; position: relative; display: flex; flex-direction: column; }
+        #gameArea { flex: 1; position: relative; overflow: hidden; background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%); }
+        .lane { position: absolute; top: 0; bottom: 0; width: 25%; border-right: 1px solid rgba(255,255,255,0.1); }
+        .lane:nth-child(1) { left: 0%; } .lane:nth-child(2) { left: 25%; } .lane:nth-child(3) { left: 50%; } .lane:nth-child(4) { left: 75%; border-right: none; }
+        .falling-object { position: absolute; font-size: 40px; text-align: center; width: 80px; height: 80px; line-height: 80px; margin-left: -40px; filter: drop-shadow(0 0 10px rgba(255,255,255,0.3)); animation: bob 1s ease-in-out infinite; }
+        @keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+        .bomb { animation: bombPulse 0.5s ease-in-out infinite; }
+        @keyframes bombPulse { 0%, 100% { transform: scale(1); filter: drop-shadow(0 0 10px red); } 50% { transform: scale(1.1); filter: drop-shadow(0 0 20px red); } }
+        #gatesSection { height: 80px; display: flex; background: #2d3436; border-top: 3px solid #636e72; border-bottom: 3px solid #636e72; }
+        .gate-wrapper { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; border-right: 1px solid rgba(255,255,255,0.1); position: relative; cursor: pointer; }
+        .gate-wrapper:last-child { border-right: none; }
+        .gate { width: 60px; height: 50px; border: 3px solid #fdcb6e; border-radius: 8px; background: #d63031; position: relative; transition: all 0.15s; display: flex; align-items: center; justify-content: center; font-size: 24px; color: #fff; font-weight: bold; cursor: pointer; }
+        .gate.closed { background: #d63031; transform: scale(0.9); }
+        .gate.closed::after { content: "✕"; font-size: 20px; }
+        .gate.open { background: #27ae60; transform: scale(1); box-shadow: 0 0 15px #2ecc71; animation: gateGlow 1.5s ease-in-out infinite; }
+        .gate.open::after { content: "✓"; font-size: 22px; }
+        @keyframes gateGlow { 0%, 100% { box-shadow: 0 0 10px #2ecc71; } 50% { box-shadow: 0 0 20px #2ecc71, 0 0 30px rgba(46, 204, 113, 0.5); } }
+        .gate-key { position: absolute; bottom: -20px; font-size: 12px; color: #fff; background: rgba(0,0,0,0.5); padding: 2px 6px; border-radius: 4px; }
+        #expectedSection { height: 60px; display: flex; background: #0984e3; }
+        .expected-slot { flex: 1; display: flex; align-items: center; justify-content: center; font-size: 36px; border-right: 1px solid rgba(255,255,255,0.1); position: relative; }
+        .expected-slot:last-child { border-right: none; }
+        .expected-slot.empty { opacity: 0.2; background: #1e272e; }
+        .expected-slot.waiting { background: #2d3436; opacity: 0.6; }
+        .expected-slot.wrong { background: #e74c3c; animation: shake 0.3s; }
+        .expected-slot.correct { background: #27ae60; animation: pulse 0.3s; }
+        .expected-slot.flash { animation: flashApply 0.4s; }
+        @keyframes flashApply { 0% { background: #f1c40f; transform: scale(1); } 50% { background: #f39c12; transform: scale(1.1); } 100% { background: #0984e3; transform: scale(1); } }
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+        @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.2); } }
+        #selectionBar { height: 70px; display: flex; background: #2c3e50; border-top: 2px solid #34495e; }
+        .selection-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; border-right: 1px solid rgba(255,255,255,0.1); cursor: pointer; transition: all 0.15s; position: relative; }
+        .selection-item:last-child { border-right: none; }
+        .selection-item.active { background: #f39c12; transform: scale(1.05); }
+        .selection-item:hover { background: rgba(255,255,255,0.1); }
+        .selection-item .emoji { font-size: 32px; }
+        .selection-item .label { font-size: 10px; color: #fff; margin-top: 2px; }
+        .fruit-key { position: absolute; top: 2px; right: 4px; font-size: 10px; color: #fff; background: rgba(0,0,0,0.5); padding: 1px 5px; border-radius: 3px; }
+        #bottomBar { height: 60px; display: flex; justify-content: space-between; align-items: center; background: #1a1a2e; padding: 0 20px; border-top: 2px solid #2d3436; }
+        #scoreDisplay { color: #fff; font-size: 24px; font-weight: bold; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); }
+        #comboDisplay { color: #f1c40f; font-size: 20px; font-weight: bold; }
+        #livesDisplay { display: flex; gap: 8px; align-items: center; }
+        .life { transition: all 0.3s; font-size: 30px; }
+        .life.big { font-size: 40px; }
+        .life.small { font-size: 30px; }
+        .life.lost { opacity: 0; visibility: hidden; }
+        .menu-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); display: flex; flex-direction: column; align-items: center; z-index: 100; color: #fff; overflow-y: auto; padding: 30px 20px; }
+        .menu-screen.hidden { display: none; }
+        .menu-title { font-size: 48px; margin-bottom: 20px; text-shadow: 3px 3px 6px rgba(0,0,0,0.5); text-align: center; flex-shrink: 0; }
+        .menu-button { padding: 15px 40px; margin: 10px; font-size: 20px; border: none; border-radius: 10px; cursor: pointer; background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; font-weight: bold; transition: all 0.2s; min-width: 250px; flex-shrink: 0; }
+        .menu-button:hover { transform: scale(1.05); box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
+        .menu-option { margin: 10px; display: flex; align-items: center; gap: 15px; font-size: 18px; flex-shrink: 0; }
+        .menu-option label { min-width: 200px; }
+        .menu-option select, .menu-option input { padding: 8px 15px; font-size: 16px; border-radius: 5px; border: none; background: #333; color: #fff; }
+        .menu-option .readonly-val { padding: 8px 15px; font-size: 16px; border-radius: 5px; background: #444; color: #f1c40f; font-weight: bold; }
+        .records-list { max-height: 300px; overflow-y: auto; margin: 20px; padding: 15px; background: rgba(255,255,255,0.1); border-radius: 10px; min-width: 400px; flex-shrink: 0; }
+        .record-entry { display: flex; justify-content: space-between; padding: 8px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .key-bind-list { margin: 20px; max-height: 400px; overflow-y: auto; flex-shrink: 0; }
+        .key-bind-row { display: flex; align-items: center; margin: 8px 0; gap: 15px; }
+        .key-bind-row label { min-width: 150px; }
+        .key-bind-row .current-key { background: #444; padding: 8px 16px; border-radius: 5px; min-width: 100px; text-align: center; }
+        .key-bind-row .current-key.listening { background: #e74c3c; animation: blink 0.5s infinite; }
+        @keyframes blink { 50% { opacity: 0.5; } }
+        .notification { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.8); color: #fff; padding: 20px 40px; border-radius: 15px; font-size: 24px; z-index: 200; animation: fadeInOut 2s forwards; }
+        @keyframes fadeInOut { 0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); } 10% { opacity: 1; transform: translate(-50%, -50%) scale(1); } 90% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -50%) scale(1); } }
+        .float-score { position: absolute; color: #2ecc71; font-size: 28px; font-weight: bold; pointer-events: none; animation: floatUp 1s forwards; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); }
+        .float-score.negative { color: #e74c3c; }
+        @keyframes floatUp { 0% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-60px); } }
+        #modeIndicator { position: absolute; top: 10px; left: 10px; color: #fff; font-size: 14px; background: rgba(0,0,0,0.5); padding: 5px 10px; border-radius: 5px; z-index: 10; }
+        .pause-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 150; color: #fff; }
+        .pause-overlay.hidden { display: none; }
+        .pause-title { font-size: 60px; text-shadow: 3px 3px 6px rgba(0,0,0,0.5); margin-bottom: 30px; }
+        #highscoreInput { padding: 15px 20px; font-size: 24px; border-radius: 10px; border: 3px solid #667eea; background: #333; color: #fff; text-align: center; margin: 15px; width: 200px; }
+        .tutorial { background: rgba(255,255,255,0.05); padding: 20px; border-radius: 10px; margin: 15px; max-width: 650px; text-align: left; line-height: 1.6; flex-shrink: 0; }
+        .tutorial h3 { margin-bottom: 10px; color: #f1c40f; }
+        .tutorial code { background: #444; padding: 2px 6px; border-radius: 3px; font-family: monospace; }
+        .hint-box { background: rgba(46, 204, 113, 0.15); border-left: 4px solid #2ecc71; padding: 10px 15px; margin: 10px 0; border-radius: 5px; }
+        .hint-box strong { color: #2ecc71; }
+        .step-list { list-style: none; counter-reset: step; }
+        .step-list li { counter-increment: step; margin: 8px 0; padding-left: 35px; position: relative; }
+        .step-list li::before { content: counter(step); position: absolute; left: 0; top: 2px; width: 24px; height: 24px; background: #f39c12; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px; }
+        .esc-hint { color: #aaa; font-size: 14px; margin-top: 15px; flex-shrink: 0; }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <div id="gameArea">
+            <div class="lane"></div><div class="lane"></div><div class="lane"></div><div class="lane"></div>
+            <div id="modeIndicator"></div>
+            <div class="pause-overlay hidden" id="pauseOverlay">
+                <div class="pause-title">&#9208; ПАУЗА</div>
+                <button class="menu-button" id="btnPauseResume">&#9654; Продолжить</button>
+                <button class="menu-button" id="btnPauseMenu">&#127968; В меню</button>
+                <button class="menu-button" id="btnPauseSurrender">&#127987; Сдаться</button>
+            </div>
+        </div>
+        <div id="gatesSection">
+            <div class="gate-wrapper" data-lane="0"><div class="gate closed" id="gate0"><span class="gate-key" id="gateKey0">A</span></div></div>
+            <div class="gate-wrapper" data-lane="1"><div class="gate closed" id="gate1"><span class="gate-key" id="gateKey1">S</span></div></div>
+            <div class="gate-wrapper" data-lane="2"><div class="gate closed" id="gate2"><span class="gate-key" id="gateKey2">D</span></div></div>
+            <div class="gate-wrapper" data-lane="3"><div class="gate closed" id="gate3"><span class="gate-key" id="gateKey3">F</span></div></div>
+        </div>
+        <div id="expectedSection">
+            <div class="expected-slot empty" id="expected0"></div>
+            <div class="expected-slot empty" id="expected1"></div>
+            <div class="expected-slot empty" id="expected2"></div>
+            <div class="expected-slot empty" id="expected3"></div>
+        </div>
+        <div id="selectionBar">
+            <div class="selection-item" data-fruit="0"><span class="fruit-key" id="fruitKey0">J</span><span class="emoji">&#127822;</span><span class="label">Яблоко</span></div>
+            <div class="selection-item" data-fruit="1"><span class="fruit-key" id="fruitKey1">K</span><span class="emoji">&#127824;</span><span class="label">Груша</span></div>
+            <div class="selection-item" data-fruit="2"><span class="fruit-key" id="fruitKey2">L</span><span class="emoji">&#127827;</span><span class="label">Клубника</span></div>
+            <div class="selection-item" data-fruit="3"><span class="fruit-key" id="fruitKey3">;</span><span class="emoji">&#127826;</span><span class="label">Черешня</span></div>
+        </div>
+        <div id="bottomBar">
+            <div><div id="scoreDisplay">Очки: 0</div><div id="comboDisplay"></div></div>
+            <div id="livesDisplay">
+                <span class="life small" id="life0">&#10084;&#65039;</span>
+                <span class="life small" id="life1">&#10084;&#65039;</span>
+                <span class="life small" id="life2">&#10084;&#65039;</span>
+                <span class="life big" id="life3">&#10084;&#65039;</span>
+            </div>
+        </div>
+        <div class="menu-screen" id="menuScreen">
+            <div class="menu-title">&#127928; Fruit Hero &#127822;</div>
+            <div class="tutorial">
+                <h3>&#127918; Как играть:</h3>
+                <ol class="step-list">
+                    <li>Видишь, что клубника &#127827; падает в 3-ю дорожку?</li>
+                    <li>Нажми на клубнику внизу (или клавишу <code class="key-hint-fruits-single" data-idx="2">L</code>) — она станет оранжевой!</li>
+                    <li>Теперь нажми на 3-и ворота (или клавишу <code class="key-hint-gates-single" data-idx="2">D</code>) — они станут зелёными с клубникой!</li>
+                    <li>Повтори нажатие на ворота БЕЗ фрукта — они закроются!</li>
+                </ol>
+                <p style="margin-top:10px;"><code class="key-hint-gates">A S D F</code> — открыть/закрыть ворота</p>
+                <p><code class="key-hint-fruits">J K L ;</code> — выбрать фрукт</p>
+                <div class="hint-box">
+                    <strong>&#128161; Можно и мышкой!</strong> Кликни по фрукту внизу → он подсветится. Кликни по воротам → фрукт применится!<br>
+                    <strong>&#128161; Можно и с зажатием!</strong> Зажми клавишу ворот + клавишу фрукта → фрукт применится к этим воротам!<br>
+                    <strong>&#128161; Держи фрукт зажатым!</strong> Если ты зажал фрукт и применил его — он продолжит действовать, пока держишь клавишу!
+                </div>
+                <p>&#10084;&#65039; — сердечки дают +1 жизнь (ловить не обязательно!) &#128163; — закрой ворота перед бомбой! <code>ESC</code> — пауза</p>
+            </div>
+            <button class="menu-button" id="btnPlay">&#9654; Играть</button>
+            <button class="menu-button" id="btnSettings">&#9881; Настройки</button>
+            <button class="menu-button" id="btnRecords">&#127942; Рекорды</button>
+            <button class="menu-button" id="btnHelp">&#10067; Помощь</button>
+        </div>
+        <div class="menu-screen hidden" id="settingsScreen">
+            <div class="menu-title">&#9881; Настройки</div>
+            <div class="menu-option"><label>Скорость падения:</label><select id="speedSelect"><option value="1">Медленно</option><option value="2" selected>Средне</option><option value="3">Быстро</option><option value="4">Очень быстро</option></select></div>
+            <div class="menu-option"><label>Включить бомбы:</label><input type="checkbox" id="bombsToggle" checked></div>
+            <div class="menu-option"><label>Режим игры:</label><select id="modeSelect"><option value="normal">Обычный</option><option value="shuffle">С перемешиванием</option><option value="double">Двойные объекты</option><option value="chaos">Хаос (2+3)</option></select></div>
+            <div class="menu-option"><label>Множитель (авто):</label><span class="readonly-val" id="multDisplay">x3.0</span></div>
+            <button class="menu-button" id="btnKeyBindings">&#127929; Настроить клавиши</button>
+            <button class="menu-button" id="btnSettingsBack">&#8592; Назад</button>
+            <p class="esc-hint">ESC — назад в меню</p>
+        </div>
+        <div class="menu-screen hidden" id="keyBindingsScreen">
+            <div class="menu-title">&#127929; Настройка клавиш</div>
+            <p style="margin-bottom:10px;">Нажмите "Изменить" и затем нужную кнопку</p>
+            <div class="key-bind-list" id="keyBindList"></div>
+            <button class="menu-button" id="btnKeyBindingsReset">&#8634; Сбросить</button>
+            <button class="menu-button" id="btnKeyBindingsBack">&#8592; Назад</button>
+            <p class="esc-hint">ESC — назад в меню</p>
+        </div>
+        <div class="menu-screen hidden" id="recordsScreen">
+            <div class="menu-title">&#127942; Рекорды</div>
+            <div class="records-list" id="recordsList"><p style="text-align:center;">Пока нет рекордов.</p></div>
+            <button class="menu-button" id="btnRecordsClear">&#128465; Очистить</button>
+            <button class="menu-button" id="btnRecordsBack">&#8592; Назад</button>
+            <p class="esc-hint">ESC — назад в меню</p>
+        </div>
+        <div class="menu-screen hidden" id="highscoreScreen">
+            <div class="menu-title">&#127942; Новый рекорд!</div>
+            <p style="font-size:20px;">Результат: <span id="highscoreValue" style="color:#f1c40f;font-weight:bold;"></span></p>
+            <input type="text" id="highscoreInput" placeholder="Ваше имя" maxlength="15" autocomplete="off">
+            <button class="menu-button" id="btnSaveHighscore">&#128190; Сохранить</button>
+            <button class="menu-button" id="btnSkipHighscore">Пропустить</button>
+            <p class="esc-hint">ESC — пропустить</p>
+        </div>
+        <div class="menu-screen hidden" id="gameOverScreen">
+            <div class="menu-title">&#128148; Игра окончена</div>
+            <p style="font-size:24px;">Результат: <span id="gameOverScore" style="color:#f1c40f;font-weight:bold;"></span></p>
+            <p style="font-size:16px; margin-bottom:20px;">(множитель: x<span id="gameOverMult"></span>)</p>
+            <button class="menu-button" id="btnPlayAgain">&#128260; Играть снова</button>
+            <button class="menu-button" id="btnBackToMenu">&#127968; В меню</button>
+        </div>
+        <div class="menu-screen hidden" id="helpScreen">
+            <div class="menu-title">&#10067; Как играть</div>
+            <div class="tutorial" style="max-height:none;">
+                <h3>&#127919; Цель</h3><p>Ловите фрукты в правильные ворота!</p>
+                <h3>&#9881; Управление клавиатурой</h3>
+                <ol class="step-list">
+                    <li>Нажми клавишу фрукта (<code class="key-hint-fruits">J K L ;</code>) — он подсветится оранжевым!</li>
+                    <li>Нажми клавишу ворот (<code class="key-hint-gates">A S D F</code>) — фрукт применится к этим воротам и они откроются!</li>
+                    <li>Если нажать на ворота БЕЗ выбранного фрукта — они закроются (если были открыты).</li>
+                </ol>
+                <div class="hint-box">
+                    <strong>&#128293; Держи фрукт зажатым!</strong><br>
+                    Если ты зажал клавишу фрукта и применил его к воротам — фрукт продолжит действовать, пока ты держишь клавишу! Нажимай на другие ворота — фрукт применится и к ним!<br><br>
+                    <strong>&#128293; Можно зажимать!</strong><br>
+                    Зажми клавишу ворот и нажми клавишу фрукта (или наоборот!) — фрукт применится к этим воротам. Порядок не важен!
+                </div>
+                <h3>&#128433; Управление мышкой</h3>
+                <ol class="step-list">
+                    <li>Кликни по фрукту внизу — он подсветится оранжевым!</li>
+                    <li>Кликни по воротам — фрукт применится и ворота откроются!</li>
+                    <li>Кликни ещё раз по тому же фрукту — он перестанет быть активным.</li>
+                    <li>Если кликнуть по воротам без активного фрукта: открытые закроются, а закрытые покажут ошибку!</li>
+                </ol>
+                <h3>&#128203; Правила</h3>
+                <p>&#9989; Фрукт ловится, если ворота открыты И ожидался правильный фрукт.</p>
+                <p>&#10060; Ворота закрыты на фрукт = потеря жизни (кроме бомб).</p>
+                <p>&#10060; Не тот фрукт = потеря жизни!</p>
+                <p>&#128163; Перед бомбой закройте ворота!</p>
+                <p>&#10084;&#65039; Сердечки дают +1 жизнь (максимум 4). Ловить не обязательно — не поймал, ничего страшного!</p>
+                <p>&#10067; Если ворота открыты, но фрукт не выбран — там стоит вопросик. Выбери фрукт!</p>
+                <h3>&#127918; Режимы</h3>
+                <p><strong>Обычный:</strong> стандартная игра.</p>
+                <p><strong>Перемешивание:</strong> порядок фруктов и клавиш периодически меняется!</p>
+                <p><strong>Двойные:</strong> падают 2 объекта одновременно.</p>
+                <p><strong>Хаос:</strong> перемешивание + двойные.</p>
+                <h3>&#127942; Множитель (автоматический!)</h3>
+                <p>Множитель = Скорость + Режим + Бомбы. Чем сложнее — тем больше очков!</p>
+            </div>
+            <button class="menu-button" id="btnHelpBack">&#8592; Назад</button>
+            <p class="esc-hint">ESC — назад в меню</p>
+        </div>
+    </div>
+    <script>
+    var FRUITS = [
+        { emoji: String.fromCodePoint(127822), name: 'Яблоко' },
+        { emoji: String.fromCodePoint(127824), name: 'Груша' },
+        { emoji: String.fromCodePoint(127827), name: 'Клубника' },
+        { emoji: String.fromCodePoint(127826), name: 'Черешня' }
+    ];
+    var BOMB = String.fromCodePoint(128163);
+    var HEART = String.fromCodePoint(10084, 65039);
+    var BROKEN_HEART = String.fromCodePoint(128148);
+    var SHUFFLE = String.fromCodePoint(128256);
+    var FIRE = String.fromCodePoint(128293);
+    var GAMEPAD = String.fromCodePoint(127918);
+    var DART = String.fromCodePoint(127919);
+    var TORNADO = String.fromCodePoint(127786, 65039);
+    var QUESTION = String.fromCodePoint(10067);
+
+    var DEFAULT_KEYS = { gate0:'KeyA',gate1:'KeyS',gate2:'KeyD',gate3:'KeyF',fruit0:'KeyJ',fruit1:'KeyK',fruit2:'KeyL',fruit3:'Semicolon',pause:'Escape' };
+    var KEY_LABELS = { gate0:'Ворота 1',gate1:'Ворота 2',gate2:'Ворота 3',gate3:'Ворота 4',fruit0:'Фрукт 1',fruit1:'Фрукт 2',fruit2:'Фрукт 3',fruit3:'Фрукт 4',pause:'Пауза' };
+    var SPEED_VALUES = { '1': 50, '2': 80, '3': 120, '4': 160 };
+    var state = 'menu';
+    var config = { speed:'2', bombs:true, mode:'normal', keys:JSON.parse(JSON.stringify(DEFAULT_KEYS)) };
+    var game = null, lastTime = 0, objCounter = 0;
+    var heldGates = {}, heldFruits = {}, fruitAppliedDuringHold = {};
+
+    function computeMultiplier() {
+        var speedMult = { '1': 1.0, '2': 1.5, '3': 2.0, '4': 2.5 };
+        var modeMult = { 'normal': 1.0, 'shuffle': 1.3, 'double': 1.3, 'chaos': 1.5 };
+        var bombsBonus = config.bombs ? 0.2 : 0.0;
+        return speedMult[config.speed] + modeMult[config.mode] + bombsBonus;
+    }
+    function updateMultDisplay() { var el = document.getElementById('multDisplay'); if (el) el.textContent = 'x' + computeMultiplier().toFixed(1); }
+    function getHeldFruit() { for (var i = 3; i >= 0; i--) { if (heldFruits[i]) return i; } return null; }
+    function codeToLabel(code) {
+        var m = {'KeyA':'A','KeyB':'B','KeyC':'C','KeyD':'D','KeyE':'E','KeyF':'F','KeyG':'G','KeyH':'H','KeyI':'I','KeyJ':'J','KeyK':'K','KeyL':'L','KeyM':'M','KeyN':'N','KeyO':'O','KeyP':'P','KeyQ':'Q','KeyR':'R','KeyS':'S','KeyT':'T','KeyU':'U','KeyV':'V','KeyW':'W','KeyX':'X','KeyY':'Y','KeyZ':'Z','Digit1':'1','Digit2':'2','Digit3':'3','Digit4':'4','Digit5':'5','Digit6':'6','Digit7':'7','Digit8':'8','Digit9':'9','Digit0':'0','Semicolon':';','Comma':',','Period':'.','Slash':'/','BracketLeft':'[','BracketRight':']','Backslash':'\\','Quote':"'",'Minus':'-','Equal':'=','Escape':'ESC','Space':'Space','ArrowUp':'UP','ArrowDown':'DOWN','ArrowLeft':'LEFT','ArrowRight':'RIGHT','Enter':'ENTER','Tab':'TAB','Backspace':'BACK','ShiftLeft':'SHIFT','ShiftRight':'SHIFT','ControlLeft':'CTRL','ControlRight':'CTRL','AltLeft':'ALT','AltRight':'ALT'};
+        return m[code] || code;
+    }
+    function updateAllKeyHints() {
+        var gateKeys = [], fruitKeys = [];
+        for (var i = 0; i < 4; i++) { gateKeys.push(codeToLabel(config.keys['gate'+i])); fruitKeys.push(codeToLabel(config.keys['fruit'+i])); }
+        var gateStr = gateKeys.join(' '), fruitStr = fruitKeys.join(' ');
+        document.querySelectorAll('.key-hint-gates').forEach(function(el) { el.textContent = gateStr; });
+        document.querySelectorAll('.key-hint-fruits').forEach(function(el) { el.textContent = fruitStr; });
+        document.querySelectorAll('.key-hint-gates-single').forEach(function(el) {
+            var idx = parseInt(el.getAttribute('data-idx'));
+            el.textContent = codeToLabel(config.keys['gate'+idx]);
+        });
+        document.querySelectorAll('.key-hint-fruits-single').forEach(function(el) {
+            var idx = parseInt(el.getAttribute('data-idx'));
+            el.textContent = codeToLabel(config.keys['fruit'+idx]);
+        });
+        for (var i = 0; i < 4; i++) {
+            var gk = document.getElementById('gateKey'+i); if (gk) gk.textContent = codeToLabel(config.keys['gate'+i]);
+            var fk = document.getElementById('fruitKey'+i); if (fk) fk.textContent = codeToLabel(config.keys['fruit'+i]);
+        }
+    }
+
+    function GameInstance() {
+        this.fallingObjects = []; this.gates = [false,false,false,false]; this.expected = [null,null,null,null];
+        this.lives = 4; this.score = 0; this.combo = 0; this.maxCombo = 0; this.selectedFruit = null;
+        this.spawnTimer = 0; this.spawnInterval = 3.0; this.catchesCount = 0;
+        this.fruitOrder = [0,1,2,3]; this.shuffleTimer = 0; this.shuffleInterval = 8;
+        this.notifications = []; this.floatScores = []; this.gameOver = false; this.paused = false; this.lastSpawnLane = -1;
+    }
+    GameInstance.prototype.getSpeed = function() { return SPEED_VALUES[config.speed]; };
+    GameInstance.prototype.getMult = function() { return computeMultiplier(); };
+    GameInstance.prototype.canSpawnInLane = function(lane) {
+        for (var i = 0; i < this.fallingObjects.length; i++) { var obj = this.fallingObjects[i]; if (obj.lane === lane && obj.y < 120) return false; }
+        return true;
+    };
+    GameInstance.prototype.spawnObject = function() {
+        var lane = Math.floor(Math.random() * 4), attempts = 0;
+        while (!this.canSpawnInLane(lane) && attempts < 10) { lane = Math.floor(Math.random() * 4); attempts++; }
+        if (!this.canSpawnInLane(lane)) return;
+        this.lastSpawnLane = lane;
+        var type = 'fruit', value = null, rand = Math.random();
+        if (config.bombs && rand < 0.08) type = 'bomb';
+        else if (rand < 0.12) type = 'heart';
+        else value = this.fruitOrder[Math.floor(Math.random() * 4)];
+        this.fallingObjects.push({ type:type, value:value, lane:lane, y:-60, element:null, speed:this.getSpeed(), id:'o'+(objCounter++) });
+    };
+    GameInstance.prototype.update = function(dt) {
+        if (this.paused || this.gameOver) return;
+        this.spawnTimer += dt;
+        var interval = Math.max(1.5, this.spawnInterval - this.score * 0.0005);
+        if (this.spawnTimer >= interval) {
+            this.spawnTimer = 0; this.spawnObject();
+            if (config.mode === 'double' || config.mode === 'chaos') if (Math.random() < 0.5) this.spawnObject();
+        }
+        if (config.mode === 'shuffle' || config.mode === 'chaos') {
+            this.shuffleTimer += dt;
+            if (this.shuffleTimer >= this.shuffleInterval) { this.shuffleTimer = 0; this.shuffleFruitOrder(); }
+        }
+        var gameHeight = document.getElementById('gameArea').clientHeight, bottomY = gameHeight - 20;
+        for (var i = this.fallingObjects.length - 1; i >= 0; i--) {
+            var obj = this.fallingObjects[i]; obj.y += obj.speed * dt;
+            if (obj.element) obj.element.style.top = obj.y + 'px';
+            if (obj.y >= bottomY) this.handleObjectReachBottom(obj, i);
+        }
+        this.notifications = this.notifications.filter(function(n) { n.time -= dt; if (n.time <= 0) { n.element.remove(); return false; } return true; });
+        this.floatScores = this.floatScores.filter(function(f) { f.time -= dt; if (f.time <= 0) { f.element.remove(); return false; } return true; });
+    };
+    GameInstance.prototype.handleObjectReachBottom = function(obj, index) {
+        this.fallingObjects.splice(index, 1);
+        if (obj.type === 'fruit') {
+            var lane = obj.lane, gateOpen = this.gates[lane], expected = this.expected[lane];
+            if (gateOpen && expected === obj.value) {
+                this.combo++; if (this.combo > this.maxCombo) this.maxCombo = this.combo; this.catchesCount++;
+                var points = Math.round(10 * this.getMult() * Math.min(this.combo, 5));
+                this.score += points; this.showFloatScore(obj, '+'+points, false); this.flashExpected(lane, 'correct');
+            } else if (!gateOpen) { this.loseLife(obj, 'Ворота закрыты!'); }
+            else { this.loseLife(obj, 'Не тот фрукт!'); this.flashExpected(lane, 'wrong'); }
+        } else if (obj.type === 'bomb') {
+            if (!this.gates[obj.lane]) { this.combo++; var p = Math.round(20*this.getMult()); this.score += p; this.showFloatScore(obj, '+'+p, false); }
+            else { this.loseLife(obj, 'Бомба! Закрой ворота!'); }
+        } else if (obj.type === 'heart') {
+            // Hearts are optional: catch = +1 life, miss = nothing
+            if (this.gates[obj.lane]) {
+                if (this.lives < 4) { this.lives++; this.showFloatScore(obj, '+❤️', false); updateLives(); }
+                else { this.showFloatScore(obj, 'Макс ❤️', false); }
+            }
+            // If gate closed, heart just passes through - no penalty
+        }
+        if (obj.element) obj.element.remove();
+    };
+    GameInstance.prototype.loseLife = function(obj, reason) {
+        this.lives--; this.combo = 0; this.showNotification(BROKEN_HEART+' '+reason, '#e74c3c'); this.showFloatScore(obj, '-❤️', true);
+        updateLives(); if (this.lives <= 0) this.endGame();
+    };
+    GameInstance.prototype.endGame = function() { this.gameOver = true; showGameOver(this.score, this.getMult()); };
+    GameInstance.prototype.flashExpected = function(lane, type) { var el = document.getElementById('expected'+lane); el.classList.add(type); setTimeout(function() { el.classList.remove(type); }, 300); };
+    GameInstance.prototype.showFloatScore = function(obj, text, negative) {
+        var el = document.createElement('div'); el.className = 'float-score' + (negative ? ' negative' : '');
+        el.textContent = text; el.style.left = (obj.lane*25+12.5)+'%'; el.style.top = (obj.y-20)+'px';
+        document.getElementById('gameArea').appendChild(el); this.floatScores.push({element:el,time:1});
+    };
+    GameInstance.prototype.showNotification = function(text, color) {
+        color = color || '#fff'; var el = document.createElement('div'); el.className = 'notification';
+        el.textContent = text; el.style.color = color; el.style.borderLeft = '5px solid '+color;
+        document.getElementById('gameArea').appendChild(el); this.notifications.push({element:el,time:2});
+    };
+    GameInstance.prototype.shuffleFruitOrder = function() {
+        var arr = this.fruitOrder.slice();
+        for (var i = arr.length - 1; i > 0; i--) { var j = Math.floor(Math.random()*(i+1)); var t = arr[i]; arr[i]=arr[j]; arr[j]=t; }
+        this.fruitOrder = arr; this.showNotification(SHUFFLE+' Порядок фруктов изменился!', '#f39c12'); updateSelectionBar();
+    };
+    GameInstance.prototype.toggleGate = function(lane) {
+        this.gates[lane] = !this.gates[lane];
+        if (!this.gates[lane]) { this.expected[lane] = null; }
+        updateGateVisual(lane); updateExpectedVisual(lane);
+    };
+    GameInstance.prototype.openGateWithFruit = function(lane, fruitPos) {
+        var fruitIdx = this.fruitOrder[fruitPos];
+        this.gates[lane] = true; this.expected[lane] = fruitIdx;
+        updateGateVisual(lane); updateExpectedVisual(lane); flashExpectedSlot(lane);
+    };
+    GameInstance.prototype.closeGate = function(lane) {
+        this.gates[lane] = false; this.expected[lane] = null;
+        updateGateVisual(lane); updateExpectedVisual(lane);
+    };
+    GameInstance.prototype.selectFruit = function(pos) { this.selectedFruit = pos; updateSelectionHighlight(); };
+    GameInstance.prototype.deselectFruit = function() { this.selectedFruit = null; updateSelectionHighlight(); };
+
+    function flashExpectedSlot(lane) { var el = document.getElementById('expected'+lane); el.classList.add('flash'); setTimeout(function() { el.classList.remove('flash'); }, 400); }
+    function renderFallingObjects() {
+        if (!game) return;
+        for (var i = 0; i < game.fallingObjects.length; i++) {
+            var obj = game.fallingObjects[i];
+            if (!obj.element) {
+                var el = document.createElement('div'); el.className = 'falling-object';
+                if (obj.type === 'bomb') el.classList.add('bomb');
+                el.dataset.id = obj.id; el.style.left = (obj.lane*25+12.5)+'%'; el.style.top = obj.y+'px';
+                if (obj.type === 'fruit') el.textContent = FRUITS[obj.value].emoji;
+                else if (obj.type === 'bomb') el.textContent = BOMB;
+                else if (obj.type === 'heart') el.textContent = HEART;
+                document.getElementById('gameArea').appendChild(el); obj.element = el;
+            }
+        }
+    }
+    function updateGateVisual(lane) {
+        var el = document.getElementById('gate'+lane);
+        el.classList.remove('open','closed');
+        if (game.gates[lane]) { el.classList.add('open'); } else { el.classList.add('closed'); }
+        var existingKey = el.querySelector('.gate-key');
+        if (!existingKey) { var span = document.createElement('span'); span.className = 'gate-key'; span.id = 'gateKey'+lane; span.textContent = codeToLabel(config.keys['gate'+lane]); el.appendChild(span); }
+        else { existingKey.textContent = codeToLabel(config.keys['gate'+lane]); }
+    }
+    function updateExpectedVisual(lane) {
+        var el = document.getElementById('expected'+lane);
+        el.classList.remove('empty', 'waiting', 'wrong', 'correct');
+        if (!game.gates[lane]) { el.textContent = ''; el.classList.add('empty'); }
+        else if (game.expected[lane] === null) { el.textContent = QUESTION; el.classList.add('waiting'); }
+        else { el.textContent = FRUITS[game.expected[lane]].emoji; }
+    }
+    function updateSelectionBar() {
+        var items = document.querySelectorAll('.selection-item');
+        for (var i = 0; i < 4; i++) {
+            var fruitIdx = game ? game.fruitOrder[i] : i;
+            var keyEl = items[i].querySelector('.fruit-key');
+            var keyText = keyEl ? keyEl.outerHTML : '';
+            items[i].innerHTML = keyText + '<span class="emoji">'+FRUITS[fruitIdx].emoji+'</span><span class="label">'+FRUITS[fruitIdx].name+'</span>';
+        }
+        updateAllKeyHints();
+    }
+    function updateSelectionHighlight() {
+        var items = document.querySelectorAll('.selection-item');
+        for (var i = 0; i < 4; i++) { items[i].classList.toggle('active', game && game.selectedFruit === i); }
+    }
+    function updateLives() {
+        if (!game) return;
+        var lives = game.lives;
+        for (var i = 0; i < 4; i++) {
+            var el = document.getElementById('life' + i);
+            el.classList.remove('lost', 'big', 'small');
+            if (i < lives) {
+                if (i === lives - 1) { el.classList.add('big'); }
+                else { el.classList.add('small'); }
+            } else {
+                el.classList.add('lost');
+            }
+        }
+    }
+    function updateScore() {
+        document.getElementById('scoreDisplay').textContent = 'Очки: '+(game?game.score:0);
+        var c = document.getElementById('comboDisplay');
+        if (game && game.combo > 1) c.textContent = FIRE+' Комбо x'+game.combo; else c.textContent = '';
+    }
+    function gameLoop(ts) {
+        if (!lastTime) lastTime = ts; var dt = Math.min((ts-lastTime)/1000, 0.1); lastTime = ts;
+        if (state === 'playing' && game && !game.paused && !game.gameOver) { game.update(dt); renderFallingObjects(); updateScore(); }
+        requestAnimationFrame(gameLoop);
+    }
+    function setState(ns) {
+        state = ns;
+        ['menuScreen','settingsScreen','keyBindingsScreen','recordsScreen','highscoreScreen','gameOverScreen','helpScreen','pauseOverlay'].forEach(function(id) { document.getElementById(id).classList.add('hidden'); });
+        var map = { menu:'menuScreen', settings:'settingsScreen', keyBindings:'keyBindingsScreen', records:'recordsScreen', playing:null, paused:'pauseOverlay', gameOver:'gameOverScreen', highscore:'highscoreScreen', help:'helpScreen' };
+        if (ns === 'playing') document.getElementById('pauseOverlay').classList.add('hidden');
+        else if (ns === 'paused') document.getElementById('pauseOverlay').classList.remove('hidden');
+        else if (map[ns]) document.getElementById(map[ns]).classList.remove('hidden');
+        if (ns === 'keyBindings') renderKeyBindings();
+        if (ns === 'records') renderRecords();
+        if (ns === 'highscore') setTimeout(function() { document.getElementById('highscoreInput').focus(); }, 100);
+        if (ns === 'settings') updateMultDisplay();
+        if (ns === 'menu') updateAllKeyHints();
+    }
+    function startGame() {
+        document.querySelectorAll('.falling-object,.notification,.float-score').forEach(function(el) { el.remove(); });
+        game = new GameInstance();
+        heldGates = {}; heldFruits = {}; fruitAppliedDuringHold = {};
+        for(var i=0;i<4;i++) { updateGateVisual(i); updateExpectedVisual(i); }
+        updateLives(); updateSelectionBar(); updateSelectionHighlight(); updateAllKeyHints(); updateModeIndicator(); setState('playing');
+    }
+    function pauseGame() { if (state==='playing') { game.paused=true; setState('paused'); } else if (state==='paused') { game.paused=false; setState('playing'); } }
+    function surrenderGame() { if (game && !game.gameOver) { game.paused = false; game.gameOver = true; showGameOver(game.score, game.getMult()); } }
+    function showGameOver(score, mult) {
+        document.getElementById('gameOverScore').textContent = Math.round(score);
+        document.getElementById('gameOverMult').textContent = mult.toFixed(1);
+        var ws = score * mult, recs = getRecords();
+        var isHS = recs.length < 10 || ws > (recs[recs.length-1] ? recs[recs.length-1].weightedScore : 0);
+        if (isHS) { document.getElementById('highscoreValue').textContent = Math.round(ws); setState('highscore'); }
+        else { setState('gameOver'); }
+    }
+    function saveHighscore(name) {
+        var recs = getRecords(), ws = game.score * game.getMult();
+        recs.push({ name:name||'Аноним', score:game.score, weightedScore:ws, difficulty:game.getMult().toFixed(1), mode:config.mode, date:new Date().toISOString() });
+        recs.sort(function(a,b) { return b.weightedScore - a.weightedScore; });
+        if (recs.length > 10) recs.pop();
+        localStorage.setItem('fruitHeroRecords', JSON.stringify(recs)); setState('gameOver');
+    }
+    function getRecords() { try { var d = localStorage.getItem('fruitHeroRecords'); return d ? JSON.parse(d) : []; } catch(e) { return []; } }
+    function renderRecords() {
+        var recs = getRecords(), el = document.getElementById('recordsList');
+        if (recs.length === 0) { el.innerHTML = '<p style="text-align:center;">Пока нет рекордов.</p>'; return; }
+        var ml = { normal:'Обычный', shuffle:'Перемеш.', double:'Двойные', chaos:'Хаос' }; var html = '';
+        for (var i=0;i<recs.length;i++) { var r=recs[i]; html += '<div class="record-entry"><span>#'+(i+1)+' '+r.name+'</span><span>'+Math.round(r.weightedScore)+' (x'+r.difficulty+') ['+(ml[r.mode]||r.mode)+']</span></div>'; }
+        el.innerHTML = html;
+    }
+    function updateModeIndicator() {
+        var ml = { normal:GAMEPAD+' Обычный', shuffle:SHUFFLE+' Перемеш.', double:DART+' Двойные', chaos:TORNADO+' Хаос!' };
+        document.getElementById('modeIndicator').textContent = ml[config.mode] || '';
+    }
+    var listeningFor = null;
+    function renderKeyBindings() {
+        var list = document.getElementById('keyBindList'); list.innerHTML = '';
+        for (var key in KEY_LABELS) { if (!KEY_LABELS.hasOwnProperty(key)) continue;
+            var row = document.createElement('div'); row.className = 'key-bind-row';
+            row.innerHTML = '<label>'+KEY_LABELS[key]+':</label><span class="current-key" id="kb_'+key+'">'+codeToLabel(config.keys[key])+'</span><button class="menu-button" style="min-width:auto;padding:8px 16px;" data-action="'+key+'">Изменить</button>';
+            list.appendChild(row);
+        }
+        list.querySelectorAll('button[data-action]').forEach(function(btn) {
+            btn.addEventListener('click', function() { startListening(this.getAttribute('data-action')); });
+        });
+    }
+    function startListening(action) { listeningFor = action; var el = document.getElementById('kb_'+action); el.classList.add('listening'); el.textContent = '...'; }
+
+    document.addEventListener('keydown', function(e) {
+        if (listeningFor) {
+            e.preventDefault(); config.keys[listeningFor] = e.code;
+            localStorage.setItem('fruitHeroKeys', JSON.stringify(config.keys));
+            var el = document.getElementById('kb_'+listeningFor); el.classList.remove('listening'); el.textContent = codeToLabel(e.code);
+            listeningFor = null; updateAllKeyHints(); return;
+        }
+        if (e.code === 'Escape') {
+            if (state === 'settings' || state === 'keyBindings' || state === 'records' || state === 'help') { e.preventDefault(); setState('menu'); return; }
+            if (state === 'highscore') { e.preventDefault(); setState('gameOver'); return; }
+            if (state === 'playing' || state === 'paused') { e.preventDefault(); pauseGame(); return; }
+        }
+        if (state === 'playing' || state === 'paused') {
+            if (state !== 'playing') return;
+            for (var i=0;i<4;i++) {
+                if (e.code === config.keys['gate'+i]) {
+                    e.preventDefault();
+                    if (!heldGates[i]) {
+                        heldGates[i] = true; fruitAppliedDuringHold[i] = false;
+                        var fruitToApply = game.selectedFruit;
+                        if (fruitToApply === null) fruitToApply = getHeldFruit();
+                        if (fruitToApply !== null) {
+                            game.openGateWithFruit(i, fruitToApply);
+                            fruitAppliedDuringHold[i] = true;
+                            if (!heldFruits[fruitToApply]) game.deselectFruit();
+                        }
+                    }
+                    return;
+                }
+            }
+            for (var i=0;i<4;i++) {
+                if (e.code === config.keys['fruit'+i]) {
+                    e.preventDefault();
+                    if (!heldFruits[i]) {
+                        heldFruits[i] = true; game.selectFruit(i);
+                        for (var g=0; g<4; g++) {
+                            if (heldGates[g]) { game.openGateWithFruit(g, i); fruitAppliedDuringHold[g] = true; }
+                        }
+                    }
+                    return;
+                }
+            }
+        }
+        if (state === 'highscore' && e.key === 'Enter') { var n = document.getElementById('highscoreInput').value.trim(); saveHighscore(n); }
+    });
+    document.addEventListener('keyup', function(e) {
+        if (state !== 'playing' && state !== 'paused') return;
+        for (var i=0;i<4;i++) {
+            if (e.code === config.keys['gate'+i]) {
+                if (heldGates[i]) { heldGates[i] = false; if (!fruitAppliedDuringHold[i] && game && !game.gameOver && !game.paused) game.toggleGate(i); }
+                return;
+            }
+        }
+        for (var i=0;i<4;i++) {
+            if (e.code === config.keys['fruit'+i]) { heldFruits[i] = false; return; }
+        }
+    });
+    document.querySelectorAll('.selection-item').forEach(function(el, idx) {
+        el.addEventListener('click', function() {
+            if (state !== 'playing' || !game || game.paused || game.gameOver) return;
+            if (game.selectedFruit === idx) game.deselectFruit(); else game.selectFruit(idx);
+        });
+    });
+    document.querySelectorAll('.gate-wrapper').forEach(function(el, idx) {
+        el.addEventListener('click', function() {
+            if (state !== 'playing' || !game || game.paused || game.gameOver) return;
+            if (game.selectedFruit !== null) { game.openGateWithFruit(idx, game.selectedFruit); game.deselectFruit(); }
+            else { if (game.gates[idx]) game.closeGate(idx); else game.showNotification('⚠️ Сначала выбери фрукт! (кликни по нему внизу)', '#f39c12'); }
+        });
+    });
+    document.getElementById('btnPauseResume').addEventListener('click', function() { pauseGame(); });
+    document.getElementById('btnPauseMenu').addEventListener('click', function() { setState('menu'); });
+    document.getElementById('btnPauseSurrender').addEventListener('click', function() { surrenderGame(); });
+    document.getElementById('btnPlay').addEventListener('click', startGame);
+    document.getElementById('btnSettings').addEventListener('click', function() { setState('settings'); });
+    document.getElementById('btnRecords').addEventListener('click', function() { setState('records'); });
+    document.getElementById('btnHelp').addEventListener('click', function() { setState('help'); });
+    document.getElementById('btnSettingsBack').addEventListener('click', function() { setState('menu'); });
+    document.getElementById('btnKeyBindings').addEventListener('click', function() { setState('keyBindings'); });
+    document.getElementById('btnKeyBindingsBack').addEventListener('click', function() { setState('settings'); });
+    document.getElementById('btnKeyBindingsReset').addEventListener('click', function() { config.keys = JSON.parse(JSON.stringify(DEFAULT_KEYS)); localStorage.setItem('fruitHeroKeys', JSON.stringify(config.keys)); renderKeyBindings(); updateAllKeyHints(); });
+    document.getElementById('btnRecordsBack').addEventListener('click', function() { setState('menu'); });
+    document.getElementById('btnRecordsClear').addEventListener('click', function() { if (confirm('Очистить рекорды?')) { localStorage.removeItem('fruitHeroRecords'); renderRecords(); } });
+    document.getElementById('btnHelpBack').addEventListener('click', function() { setState('menu'); });
+    document.getElementById('btnSaveHighscore').addEventListener('click', function() { var n = document.getElementById('highscoreInput').value.trim(); saveHighscore(n); });
+    document.getElementById('btnSkipHighscore').addEventListener('click', function() { setState('gameOver'); });
+    document.getElementById('btnPlayAgain').addEventListener('click', startGame);
+    document.getElementById('btnBackToMenu').addEventListener('click', function() { setState('menu'); });
+    document.getElementById('speedSelect').addEventListener('change', function(e) { config.speed = e.target.value; updateMultDisplay(); });
+    document.getElementById('bombsToggle').addEventListener('change', function(e) { config.bombs = e.target.checked; updateMultDisplay(); });
+    document.getElementById('modeSelect').addEventListener('change', function(e) { config.mode = e.target.value; updateMultDisplay(); });
+    function init() {
+        try { var sk = localStorage.getItem('fruitHeroKeys'); if (sk) { var p = JSON.parse(sk); for (var k in p) { if (p.hasOwnProperty(k)) config.keys[k] = p[k]; } } } catch(e) {}
+        setState('menu'); updateAllKeyHints(); requestAnimationFrame(gameLoop);
+    }
+    init();
+    </script>
+</body>
+</html>
